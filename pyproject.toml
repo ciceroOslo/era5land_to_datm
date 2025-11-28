@@ -21,3 +21,6 @@ platforms = ["linux-64"]
 era5land_to_datm = { path = ".", editable = true }
 
 [tool.pixi.tasks]
+
+[tool.pixi.dependencies]
+ecmwf-datastores-client = ">=0.4.1"
