@@ -2,8 +2,12 @@
 authors = [{name = "Jan Ivar Korsbakken", email = "janko@cicero.oslo.no"}]
 dependencies = []
 name = "era5land_to_datm"
-requires-python = ">= 3.11"
+description = "Tools to download ERA5 Land meteorology files and convert to DATM forcing data for use with NorESM / CTSM"
+requires-python = ">= 3.13"
 version = "0.1.0"
+
+[project.urls]
+Repository = "https://github.com/ciceroOslo/era5land_to_datm"
 
 [build-system]
 build-backend = "hatchling.build"
