@@ -9,12 +9,14 @@ import ecmwf.datastores as ecmwfds
 import era5land_to_datm as etd
 from era5land_to_datm.download import (
     EcmwfDatastoreRequest,
-    ERA5LAND_DATASET_ID,
+    ERA5LAND_FOR_DATM_DATASET_ID,
     make_era5land_request,
+    send_ecmwf_datastore_request,
 )
 from era5land_to_datm.types import (
     EcmwfDatasetId,
     Era5LandVar,
+    VarSet,
     YearMonth,
 )
 from era5land_to_datm.variables import (
@@ -36,13 +38,13 @@ years_months: list[YearMonth] = [
 # Select variables to download. If not otherwise specified, use the defaults,
 # which are the variables needed for DATM.
 # %%
-download_vars: list[Era5LandVar] = list(era5_datm_vars)
+download_vars: VarSet = era5_datm_vars
 
 # %%
 # Get the request dictionary to use for downloading the data
 # %%
 request: EcmwfDatastoreRequest = make_era5land_request(
-    dataset_id=ERA5LAND_DATASET_ID,
+    dataset_id=ERA5LAND_FOR_DATM_DATASET_ID,
     years_months=years_months,
     variables=download_vars,
 )
@@ -50,6 +52,4 @@ request: EcmwfDatastoreRequest = make_era5land_request(
 # %%
 # Send the requests and store the Remote instances that are created
 # %%
-remotes: dict[YearMonth, ecmwfds.Remote] = (
-    etd.download.send_ecmwf_datastore_request(request)
-)
+remotes: dict[YearMonth, ecmwfds.Remote] =  send_ecmwf_datastore_request(request)

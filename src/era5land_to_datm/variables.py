@@ -19,7 +19,10 @@ era5_datm_vars : frozenset[Era5LandVar]
 from collections import UserDict
 import typing as tp
 
-from .types import Era5LandVar
+from .types import (
+    Era5LandVar,
+    VarSet,
+)
 
 
 
@@ -97,7 +100,7 @@ era5land_grib_varnames: Era5LandVarMapping[str] = Era5LandVarMapping(
     frozen=True,
 )
 
-era5_datm_vars: tp.Final[frozenset[Era5LandVar]] = frozenset(
+era5_datm_vars: tp.Final[VarSet] = frozenset(
     {
         Era5LandVar.D2M,
         Era5LandVar.SP,
