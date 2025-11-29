@@ -153,6 +153,48 @@ class EcmwfArea(pydantic.BaseModel):
         return self
     ###END def EcmwfArea.validate_east_west
 
+    @pydantic.model_validator(mode='before')
+    @classmethod
+    def parse_from_tuple[_DataType](
+        cls,
+        data: tp.Sequence[float] | _DataType,
+    ) -> dict[str, float] | _DataType:
+        """Parse an EcmwfArea from a sequence of four floats representing the
+        North, West, South, and East bounds.
+
+        Parameters
+        ----------
+        data : Sequence[float] | _DataType
+            The data to parse. If a sequence of four floats, it is interpreted
+            as (north, west, south, east). Otherwise, it is returned unchanged.
+
+        Returns
+        -------
+        dict[Literal['north', 'west', 'south', 'east'], float] | _DataType
+            If the input data was a sequence of four floats, a dictionary with
+            the corresponding keys and values is returned. Otherwise, the input
+            data is returned unchanged.
+        """
+        if (
+                isinstance(data, tuple)
+                and hasattr(data, '_fields')
+                and hasattr(data, '_asdict')
+        ):
+            return tp.cast(tp.NamedTuple, data)._asdict()
+        if (
+            isinstance(data, tp.Sequence)
+            and len(data) == 4
+            and all(isinstance(_v, float) for _v in data)
+        ):
+            return {
+                'north': data[0],
+                'west': data[1],
+                'south': data[2],
+                'east': data[3],
+            }
+        return tp.cast(_DataType, data)
+    ###END def EcmwfArea.parse_from_tuple
+
     def to_tuple(
         self,
     ) -> 'EcmwfAreaTuple':
