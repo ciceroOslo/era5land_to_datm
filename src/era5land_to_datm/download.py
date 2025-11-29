@@ -97,6 +97,82 @@ type LongitudeFloat = tp.Annotated[
 ]
 
 
+class EcmwfArea(pydantic.BaseModel):
+    """Pydantic model representing a geographical area for ECMWF data requests.
+
+    Attributes
+    ----------
+    north : LatitudeFloat
+        The northern bound in degrees (-90.0 to 90.0).
+    west : LongitudeFloat
+        The western bound in degrees (-360.0 to 360.0).
+    south : LatitudeFloat
+        The southern bound in degrees (-90.0 to 90.0).
+    east : LongitudeFloat
+        The eastern bound in degrees (-360.0 to 360.0).
+
+    Validators
+    ----------
+    validate_north_south
+        Validate that the south bound is less than the north bound.
+    validate_east_west
+        Validate that the east bound is greater than the west bound.
+
+    Methods
+    -------
+    to_tuple
+        Convert the EcmwfArea instance to an EcmwfAreaTuple.
+    """
+
+    north: LatitudeFloat
+    west: LongitudeFloat
+    south: LatitudeFloat
+    east: LongitudeFloat
+
+    @pydantic.model_validator(mode='after')
+    def validate_north_south(
+        self,
+    ) -> tp.Self:
+        """Validate that the south bound is less than the north bound."""
+        if self.south >= self.north:
+            raise ValueError(
+                'The south bound must be less than the north bound.'
+            )
+        return self
+    ###END def EcmwfArea.validate_north_south
+
+    @pydantic.model_validator(mode='after')
+    def validate_east_west(
+        self,
+    ) -> tp.Self:
+        """Validate that the east bound is greater than the west bound."""
+        if self.east <= self.west:
+            raise ValueError(
+                'The east bound must be greater than the west bound.'
+            )
+        return self
+    ###END def EcmwfArea.validate_east_west
+
+    def to_tuple(
+        self,
+    ) -> 'EcmwfAreaTuple':
+        """Convert the EcmwfArea instance to an EcmwfAreaTuple.
+
+        Returns
+        -------
+        EcmwfAreaTuple
+            The corresponding EcmwfAreaTuple.
+        """
+        return EcmwfAreaTuple(
+            north=self.north,
+            west=self.west,
+            south=self.south,
+            east=self.east,
+        )
+    ###END def EcmwfArea.to_tuple
+
+####END class EcmwfArea
+
 class EcmwfAreaTuple(tp.NamedTuple):
     """A namedtuple representing a geographical area for ECMWF data requests.
 
@@ -156,7 +232,7 @@ class EcmwfDatastoreRequest(pydantic.BaseModel):
         Optional, default is 'grib'.
     download_format : Literal['unarchived', 'zip']
         The download format to request. Optional, default is 'unarchived'.
-    area : tuple[float, float, float, float] or None
+    area : EcmwfAreaTuple | None
         The geographical area to request data for, as a tuple of four floats
         representing the North, West, South, and East bounds in degrees. The
         latitudes (elements 0 and 2) must be between -90.0 and 90.0, and the
@@ -182,7 +258,7 @@ class EcmwfDatastoreRequest(pydantic.BaseModel):
     time: tuple[FullHourTime, ...]
     data_format: tp.Literal['grib', 'netcdf'] = 'grib'
     download_format: tp.Literal['unarchived', 'zip'] = 'unarchived'
-    area: EcmwfAreaTuple | None = None
+    area: EcmwfArea | None = None
 
     def to_request_dict(self) -> dict[str, tp.Any]:
         """Convert the EcmwfDatastoreRequest instance to a dictionary suitable
