@@ -150,3 +150,11 @@ class EcmwfAreaTuple(tp.NamedTuple):
     south: LatitudeFloat
     east: LongitudeFloat
 ###END class EcmwfAreaTuple
+
+
+NORWAY_RECT_0125_REGION: tp.Final[EcmwfArea] = EcmwfArea(
+    north=72.0,
+    west=4.0,
+    south=57.0,
+    east=32.0,
+)

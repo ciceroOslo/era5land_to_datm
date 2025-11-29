@@ -13,6 +13,9 @@ from era5land_to_datm.download import (
     create_era5land_request,
     send_ecmwf_datastore_request,
 )
+from era5land_to_datm.regions import (
+    NORWAY_RECT_0125_REGION,
+)
 from era5land_to_datm.types import (
     EcmwfDatasetId,
     YearMonth,
@@ -43,13 +46,16 @@ download_vars: VarSet = era5_datm_vars
 # %%
 # Get the request dictionary to use for downloading the data
 # %%
-request: EcmwfDatastoreRequest = create_era5land_request(
+requests: dict[YearMonth, EcmwfDatastoreRequest] = create_era5land_request(
     dataset_id=ERA5LAND_FOR_DATM_DATASET_ID,
     years_months=years_months,
     variables=download_vars,
+    area=NORWAY_RECT_0125_REGION,
 )
 
 # %%
 # Send the requests and store the Remote instances that are created
 # %%
-remotes: dict[YearMonth, ecmwfds.Remote] =  send_ecmwf_datastore_request(request)
+remotes: dict[YearMonth, ecmwfds.Remote] =  (
+    send_ecmwf_datastore_request(requests.values())
+)
