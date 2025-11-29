@@ -9,15 +9,15 @@ import ecmwf.datastores as ecmwfds
 import era5land_to_datm as etd
 from era5land_to_datm.download import (
     EcmwfDatastoreRequest,
-    EcmwfDatasetId,
     ERA5LAND_DATASET_ID,
     make_era5land_request,
 )
 from era5land_to_datm.types import (
+    EcmwfDatasetId,
+    Era5LandVar,
     YearMonth,
 )
 from era5land_to_datm.variables import (
-    Era5LandVar,
     Era5LandVarMapping,
     era5land_grib_varnames,
     era5land_request_varnames,

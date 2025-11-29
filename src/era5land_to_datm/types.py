@@ -10,6 +10,8 @@ VarSet
 
 Enums
 -----
+EcmwfDatasetId
+    Enumeration of ECMWF dataset IDs.
 Era5LandVar
     Enumeration of ERA5-Land variables available for download.
 """
@@ -31,6 +33,22 @@ class YearMonth(tp.NamedTuple):
     year: int
     month: int
 ###END class YearMonth
+
+
+class EcmwfDatasetId(enum.StrEnum):
+    """Enumeration of ECMWF dataset IDs.
+
+    Only select datasets are included. A full list can be found using
+    `ecmwf.datastores.Client.get_collections()`. The attribute `collection_ids`
+    of the returned Collections instance contains all dataset IDs. `Collection`
+    instances with full data for each collection can then be obtained by calling
+    `ecmwf.datastores.Client.get_collection(<dataset_id>)`, or by inspecing the
+    contents of `.json['collections']` of the Collections instance.
+    """
+
+    ERA5LANDHRLY = 'reanalysis-era5-land'
+
+###END class EcmwfDatasetId
 
 
 class Era5LandVar(enum.StrEnum):
