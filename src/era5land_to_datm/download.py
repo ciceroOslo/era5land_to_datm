@@ -36,7 +36,11 @@ from .variables import (
     VarSet,
 )
 
-# ['variable', 'year', 'month', 'day', 'time', 'data_format', 'download_format', 'area']
+
+
+ERA5LAND_FOR_DATM_DATASET_ID: tp.Final[EcmwfDatasetId] = (
+    EcmwfDatasetId.ERA5LANDHRLY
+)
 
 type DayInMonthInt = tp.Annotated[int, pydantic.Field(ge=1, le=31)]
 
