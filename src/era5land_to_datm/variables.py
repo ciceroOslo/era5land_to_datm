@@ -34,6 +34,22 @@ class Era5LandVar(enum.StrEnum):
     SSRD = 'surface_solar_radiation_downwards'
     STRD = 'surface_thermal_radiation_downwards'
 
+    @property
+    def request_varname(self) -> str:
+        """The variable name used in the `variable` field of ERA5-Land data
+        requests.
+        """
+        return era5land_request_varnames[self]
+    ###END def Era5LandVar.request_varname
+
+    @property
+    def grib_varname(self) -> str:
+        """The variable name used in the GRIB files that are downloaded from
+        EAR5-Land data requests.
+        """
+        return era5land_grib_varnames[self]
+    ###END def Era5LandVar.grib_varname
+
 ###END class Era5LandVar
 
 VarSet = frozenset[Era5LandVar]

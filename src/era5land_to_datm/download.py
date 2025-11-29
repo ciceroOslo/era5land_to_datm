@@ -122,6 +122,10 @@ class EcmwfDatastoreRequest(pydantic.BaseModel):
     when the request is sent. The dict representation to be sent to ECMWF can be
     obtained through the `.to_request_dict()` method.
 
+    Note that the dataset ID is included as a separate field in this model, but
+    is not included in the request dictionary itself, as it is specified
+    separately when submitting the request.
+
     Fields
     ------
     dataset_id : EcmwfDatasetId
@@ -182,15 +186,17 @@ class EcmwfDatastoreRequest(pydantic.BaseModel):
         dict, most of the numeric fields will be converted to strings as
         expected by ECMWF.
 
+        Note that the request dictionary does not include the dataset ID, which
+        is specified separately when submitting the request.
+
         Returns
         -------
         dict[str, tp.Any]
             The request dictionary.
         """
         request_dict: dict[str, tp.Any] = {
-            'dataset_id': self.dataset_id.value,
             'variable': sorted(
-                era5land_request_varnames[_var]
+                _var.request_varname
                 for _var in self.variable
             ),
             'year': f'{self.year:04d}',
