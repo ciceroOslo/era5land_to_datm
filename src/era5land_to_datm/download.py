@@ -219,3 +219,71 @@ class EcmwfDatastoreRequest(pydantic.BaseModel):
             ]
         return request_dict
     ###END def EcmwfDatastoreRequest.to_request_dict
+
+
+def create_era5land_request(
+    dataset_id: EcmwfDatasetId,
+    years_months: tp.Iterable[YearMonth],
+    variables: VarSet,
+    *,
+    days: tp.Iterable[DayInMonthInt] = range(1, 31+1),
+    times: tp.Iterable[FullHourTime] = (
+        datetime.time(hour=_h) for _h in range(0, 23+1)
+    ),
+    data_format: tp.Literal['grib', 'netcdf'] = 'grib',
+    download_format: tp.Literal['unarchived', 'zip'] = 'unarchived',
+    area: EcmwfAreaTuple | None = None,
+) -> tp.Dict[YearMonth, EcmwfDatastoreRequest]:
+    """Create EcmwfDatastoreRequest instances for downloading ERA5-Land data
+    for the specified variables and time ranges.
+
+    Parameters
+    ----------
+    dataset_id : EcmwfDatasetId
+        The dataset ID to request data from.
+    years_months : Iterable[YearMonth]
+        Iterable of YearMonth instances representing the year and month
+        combinations to create requests for.
+    variables : VarSet
+        Frozenset with the set of ERA5-Land variables to request.
+    days : Iterable[int], optional
+        Iterable of integers representing the days of the month to request
+        data for, as integers from 1 to 31. Note that days from 29 through 31
+        may be included regardless of whether they exist in the given month.
+        Default is all days from 1 to 31.
+    times : Iterable[datetime.time], optional
+        Iterable of datetime.time instances representing the times of day to
+        request data for. Note that for most datasets, only full hours are
+        valid. Default is all full hours from 00:00 to 23:00.
+    data_format : Literal['grib', 'netcdf'], optional
+        The data format to request. Note that ECMWF considers 'netcdf' to be
+        experimental, and may lead to larger files and longer processing times.
+        Default is 'grib'.
+    download_format : Literal['unarchived', 'zip'], optional
+        The download format to request. Default is 'unarchived'.
+    area : EcmwfAreaTuple | None, optional
+        The geographical area to request data for, specified as a tuple of
+        (north, west, south, east) coordinates. If None, the entire dataset
+        area is requested. Default is None.
+
+    Returns
+    -------
+    Dict[YearMonth, EcmwfDatastoreRequest]
+        Dictionary mapping YearMonth instances to EcmwfDatastoreRequest instances
+        representing the requests to be made.
+    """
+    requests: dict[YearMonth, EcmwfDatastoreRequest] = {}
+    for year, month in years_months:
+        requests[YearMonth(year=year, month=month)] = EcmwfDatastoreRequest(
+            dataset_id=dataset_id,
+            variable=variables,
+            year=year,
+            month=month,
+            day=tuple(days),
+            time=tuple(times),
+            data_format=data_format,
+            download_format=download_format,
+            area=area,
+        )
+    return requests
+###END def create_era5land_request

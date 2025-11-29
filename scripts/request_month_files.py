@@ -10,7 +10,7 @@ import era5land_to_datm as etd
 from era5land_to_datm.download import (
     EcmwfDatastoreRequest,
     ERA5LAND_FOR_DATM_DATASET_ID,
-    make_era5land_request,
+    create_era5land_request,
     send_ecmwf_datastore_request,
 )
 from era5land_to_datm.types import (
@@ -43,7 +43,7 @@ download_vars: VarSet = era5_datm_vars
 # %%
 # Get the request dictionary to use for downloading the data
 # %%
-request: EcmwfDatastoreRequest = make_era5land_request(
+request: EcmwfDatastoreRequest = create_era5land_request(
     dataset_id=ERA5LAND_FOR_DATM_DATASET_ID,
     years_months=years_months,
     variables=download_vars,
