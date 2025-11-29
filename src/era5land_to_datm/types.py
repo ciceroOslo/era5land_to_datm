@@ -72,22 +72,3 @@ class EcmwfDatasetId(enum.StrEnum):
 _ecmwf_collection_titles: tp.Final[dict[EcmwfDatasetId, str]] = {
     EcmwfDatasetId.ERA5LANDHRLY: 'ERA5-Land hourly data from 1950 to present',
 }
-
-
-class Era5LandVar(enum.StrEnum):
-    """Enumeration of ERA5-Land variables available for download."""
-
-    D2M = '2m_dewpoint_temperature'
-    SP = 'surface_pressure'
-    T2M = '2m_temperature'
-    TP = 'total_precipitation'
-    U10 = '10m_u_component_of_wind'
-    V10 = '10m_v_component_of_wind'
-    SSRD = 'surface_solar_radiation_downwards'
-    STRD = 'surface_thermal_radiation_downwards'
-
-###END class Era5LandVar
-
-
-VarSet = frozenset[Era5LandVar]
-

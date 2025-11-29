@@ -15,12 +15,12 @@ from era5land_to_datm.download import (
 )
 from era5land_to_datm.types import (
     EcmwfDatasetId,
-    Era5LandVar,
-    VarSet,
     YearMonth,
 )
 from era5land_to_datm.variables import (
     Era5LandVarMapping,
+    Era5LandVar,
+    VarSet,
     era5land_grib_varnames,
     era5land_request_varnames,
     era5_datm_vars,

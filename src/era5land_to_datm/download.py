@@ -29,8 +29,10 @@ import ecmwf.datastores as ecmwfds
 
 from .types import (
     EcmwfDatasetId,
-    Era5LandVar,
     YearMonth,
+)
+from .variables import (
+    Era5LandVar,
     VarSet,
 )
 
@@ -173,3 +175,37 @@ class EcmwfDatastoreRequest(pydantic.BaseModel):
     data_format: tp.Literal['grib', 'netcdf'] = 'grib'
     download_format: tp.Literal['unarchived', 'zip'] = 'unarchived'
     area: EcmwfAreaTuple | None = None
+
+    def to_request_dict(self) -> dict[str, tp.Any]:
+        """Convert the EcmwfDatastoreRequest instance to a dictionary suitable
+        for submission to `ecmwf.datastores.Client.submit`. In the resulting
+        dict, most of the numeric fields will be converted to strings as
+        expected by ECMWF.
+
+        Returns
+        -------
+        dict[str, tp.Any]
+            The request dictionary.
+        """
+        request_dict: dict[str, tp.Any] = {
+            'dataset_id': self.dataset_id.value,
+            'variable': sorted(
+                era5land_request_varnames[_var]
+                for _var in self.variable
+            ),
+            'year': f'{self.year:04d}',
+            'month': f'{self.month:02d}',
+            'day': [f'{_day:02d}' for _day in self.day],
+            'time': [f'{_time.hour:02d}:00' for _time in self.time],
+            'data_format': self.data_format,
+            'download_format': self.download_format,
+        }
+        if self.area is not None:
+            request_dict['area'] = [
+                f'{self.area.north}',
+                f'{self.area.west}',
+                f'{self.area.south}',
+                f'{self.area.east}',
+            ]
+        return request_dict
+    ###END def EcmwfDatastoreRequest.to_request_dict
