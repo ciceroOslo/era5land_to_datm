@@ -350,7 +350,7 @@ def create_era5land_request(
     ),
     data_format: tp.Literal['grib', 'netcdf'] = 'grib',
     download_format: tp.Literal['unarchived', 'zip'] = 'unarchived',
-    area: EcmwfAreaTuple | None = None,
+    area: EcmwfArea | None = None,
 ) -> tp.Dict[YearMonth, EcmwfDatastoreRequest]:
     """Create EcmwfDatastoreRequest instances for downloading ERA5-Land data
     for the specified variables and time ranges.
