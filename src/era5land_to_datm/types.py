@@ -44,11 +44,34 @@ class EcmwfDatasetId(enum.StrEnum):
     instances with full data for each collection can then be obtained by calling
     `ecmwf.datastores.Client.get_collection(<dataset_id>)`, or by inspecing the
     contents of `.json['collections']` of the Collections instance.
+
+    Properties
+    ----------
+    collection_id : str
+        The collection ID corresponding to the dataset ID of a given member.
+    collection_title : str
+        The collection title corresponding to the dataset ID of a given member.
     """
 
     ERA5LANDHRLY = 'reanalysis-era5-land'
 
+    @property
+    def collection_id(self) -> str:
+        """The collection ID corresponding to this dataset ID."""
+        return self.value
+    ###END def EcmwfDatasetId.collection_id
+
+    @property
+    def collection_title(self) -> str:
+        """The collection title corresponding to this dataset ID."""
+        return _ecmwf_collection_titles[self]
+    ###END def EcmwfDatasetId.collection_title
+
 ###END class EcmwfDatasetId
+
+_ecmwf_collection_titles: tp.Final[dict[EcmwfDatasetId, str]] = {
+    EcmwfDatasetId.ERA5LANDHRLY: 'ERA5-Land hourly data from 1950 to present',
+}
 
 
 class Era5LandVar(enum.StrEnum):
