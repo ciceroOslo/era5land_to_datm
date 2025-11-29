@@ -81,6 +81,36 @@ type FullHourTime = tp.Annotated[
     pydantic.AfterValidator(_validate_full_hour_time),
 ]
 
+type LatitudeFloat = tp.Annotated[
+    float,
+    pydantic.Field(ge=-90.0, le=90.0),
+]
+type LongitudeFloat = tp.Annotated[
+    float,
+    pydantic.Field(ge=-360.0, le=360.0),
+]
+
+
+class EcmwfAreaTuple(tp.NamedTuple):
+    """A namedtuple representing a geographical area for ECMWF data requests.
+
+    Attributes
+    ----------
+    north : float
+        The northern bound in degrees (-90.0 to 90.0).
+    west : float
+        The western bound in degrees (-360.0 to 360.0).
+    south : float
+        The southern bound in degrees (-90.0 to 90.0).
+    east : float
+        The eastern bound in degrees (-360.0 to 360.0).
+    """
+    north: LatitudeFloat
+    west: LongitudeFloat
+    south: LatitudeFloat
+    east: LongitudeFloat
+###END class EcmwfAreaTuple
+
 class EcmwfDatastoreRequest(pydantic.BaseModel):
     """Pydantic model representing a request dictionary to be submited through
     `ecmwf.datastores.Client.submit`.
@@ -88,8 +118,7 @@ class EcmwfDatastoreRequest(pydantic.BaseModel):
     The fields in this model have the data type that is logically appropriate
     for each field. Most will be converted to the appropriate string format
     when the request is sent. The dict representation to be sent to ECMWF can be
-    obtained through the `.to_request_dict()` method, which is also what is
-    returned by the pydantic `.model_dump()` method.
+    obtained through the `.to_request_dict()` method.
 
     Fields
     ------
@@ -125,6 +154,14 @@ class EcmwfDatastoreRequest(pydantic.BaseModel):
         (element 2) must be less than North (element 0), and East (element 3)
         must be greater than West (element 1). Optional, set to None to request
         global data. Default is None.
+
+    Methods
+    -------
+    to_request_dict
+        Convert the EcmwfDatastoreRequest instance to a dictionary suitable
+        for submission to `ecmwf.datastores.Client.submit`. In the resulting
+        dict, most of the numeric fields will be converted to strings as
+        expected by ECMWF.
     """
 
     dataset_id: EcmwfDatasetId
@@ -135,25 +172,4 @@ class EcmwfDatastoreRequest(pydantic.BaseModel):
     time: tuple[FullHourTime, ...]
     data_format: tp.Literal['grib', 'netcdf'] = 'grib'
     download_format: tp.Literal['unarchived', 'zip'] = 'unarchived'
-    area: tuple[float, float, float, float] | None = None
-
-    @property
-    def north(self) -> float | None:
-        """The northern bound of the area, or None if area is not set."""
-        return self.area[0] if self.area is not None else None
-    ###END def EcmwfDatastoreRequest.north
-    @property
-    def west(self) -> float | None:
-        """The western bound of the area, or None if area is not set."""
-        return self.area[1] if self.area is not None else None
-    ###END def EcmwfDatastoreRequest.west
-    @property
-    def south(self) -> float | None:
-        """The southern bound of the area, or None if area is not set."""
-        return self.area[2] if self.area is not None else None
-    ###END def EcmwfDatastoreRequest.south
-    @property
-    def east(self) -> float | None:
-        """The eastern bound of the area, or None if area is not set."""
-        return self.area[3] if self.area is not None else None
-    ###END def EcmwfDatastoreRequest.east
+    area: EcmwfAreaTuple | None = None
