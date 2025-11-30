@@ -5,6 +5,14 @@ Classes
 EcmfwDatastoreRequest
     Pydantic model representing a request dictionary to be submited through
     `ecmwf.datastores.Client.submit`.
+EcmfwRequestError
+    Exception raised when there is an error sending a request to the ECMWF data
+    store in the function `send_ecmwf_datastore_request`. This exception may be
+    raised after some requests have been successfully sent, in which case the
+    `successful_requests` attribute contains a dictionary of the
+    `EcmwfDatastoreRequest instances, and the `remotes` attribute a dictionary
+    of the corresponding Remote instances, in the same format as the return
+    value of `send_ecmwf_datastore_request`.
 
 Attributes
 ----------
@@ -19,7 +27,8 @@ make_era5land_request
     specified variables and time ranges.
 send_ecmwf_datastore_request
     Send the given EcmfwDatastoreRequest to the ECMWF data store and return
-    a mapping from YearMonth to the corresponding Remote instances.
+    a nested dictionary from VarSet and then YearMonth to the corresponding
+    Remote instance.
 """
 import datetime
 import typing as tp
@@ -208,7 +217,7 @@ def create_era5land_request(
     data_format: tp.Literal['grib', 'netcdf'] = 'grib',
     download_format: tp.Literal['unarchived', 'zip'] = 'unarchived',
     area: EcmwfArea | None = None,
-) -> tp.Dict[YearMonth, EcmwfDatastoreRequest]:
+) -> dict[YearMonth, EcmwfDatastoreRequest]:
     """Create EcmwfDatastoreRequest instances for downloading ERA5-Land data
     for the specified variables and time ranges.
 
@@ -243,7 +252,7 @@ def create_era5land_request(
 
     Returns
     -------
-    Dict[YearMonth, EcmwfDatastoreRequest]
+    dict[YearMonth, EcmwfDatastoreRequest]
         Dictionary mapping YearMonth instances to EcmwfDatastoreRequest instances
         representing the requests to be made.
     """
@@ -262,3 +271,94 @@ def create_era5land_request(
         )
     return requests
 ###END def create_era5land_request
+
+
+class EcmfwRequestError(Exception):
+    """Exception raised when there is an error sending a request to the ECMWF
+    data store in the function `send_ecmwf_datastore_request`. This exception
+    may be raised after some requests have been successfully sent, in which case
+    the `successful_requests` attribute contains a dictionary of the
+    corresponding remote instances, in the same format as the return value of
+    `send_ecmwf_datastore_request`.
+    """
+
+    def __init__(
+        self,
+        message: str,
+        successful_requests: dict[VarSet, dict[YearMonth, EcmwfDatastoreRequest]],
+        remotes: dict[VarSet, dict[YearMonth, ecmwfds.Remote]],
+    ) -> None:
+        """Initialize the EcmfwRequestError instance.
+
+        Parameters
+        ----------
+        message : str
+            The error message.
+        successful_requests : dict[VarSet, dict[YearMonth, EcmwfDatastoreRequest]]
+            Dictionary of successfully sent requests, mapping VarSet to a
+            dictionary mapping YearMonth to the corresponding
+            EcmwfDatastoreRequest instance.
+        remotes : dict[VarSet, dict[YearMonth, ecmwfds.Remote]]
+            Dictionary of Remote instances corresponding to the successfully
+            sent requests, mapping VarSet to a dictionary mapping YearMonth to
+            the corresponding Remote instance.
+        """
+        super().__init__(message)
+        self.successful_requests = successful_requests
+        self.remotes = remotes
+    ###END def EcmfwRequestError.__init__
+
+###END class EcmfwRequestError
+
+
+def send_ecmwf_datastore_request(
+    requests: tp.Iterable[EcmwfDatastoreRequest],
+) -> dict[VarSet, dict[YearMonth, ecmwfds.Remote]]:
+    """Send the given EcmwfDatastoreRequest to the ECMWF data store and return
+    a nested dictionary from VarSet and then YearMonth to the corresponding
+    Remote instance.
+
+    Parameters
+    ----------
+    requests : Iterable[EcmwfDatastoreRequest]
+        Iterable of EcmwfDatastoreRequest instances to send.
+
+    Returns
+    -------
+    dict[VarSet, dict[YearMonth, ecmwfds.Remote]]
+        Nested dictionary mapping VarSet to a dictionary mapping YearMonth to
+        the corresponding Remote instance.
+
+    Raises
+    ------
+    EcmfwRequestError
+        If there is an error sending any of the requests. The
+        `successful_requests` attribute contains a dictionary of the
+        successfully sent requests, and the `remotes` attribute contains a
+        dictionary of the corresponding Remote instances.
+    """
+    client: ecmwfds.Client = ecmwfds.Client()
+    remotes: dict[VarSet, dict[YearMonth, ecmwfds.Remote]] = {}
+    successful_requests: dict[VarSet, dict[YearMonth, EcmwfDatastoreRequest]] = {}
+    try:
+        for request in requests:
+            remote = client.submit(
+                collection_id=request.dataset_id.collection_id,
+                **request.to_request_dict(),
+            )
+            var_set: VarSet = request.variable
+            year_month: YearMonth = (
+                YearMonth(year=request.year, month=request.month)
+            )
+            if var_set not in remotes:
+                remotes[var_set] = {}
+                successful_requests[var_set] = {}
+            remotes[var_set][year_month] = remote
+            successful_requests[var_set][year_month] = request
+    except Exception as e:
+        raise EcmfwRequestError(
+            'Error sending request to ECMWF data store.',
+            successful_requests=successful_requests,
+            remotes=remotes,
+        ) from e
+    return remotes
