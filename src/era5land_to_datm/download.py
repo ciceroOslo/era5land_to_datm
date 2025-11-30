@@ -358,6 +358,7 @@ def send_ecmwf_datastore_request(
     try:
         for (_request_num, _request) in enumerate(requests):
             if _request_num > 0 and delay > 0.0:
+                logger.info(f'Waiting {delay:.1f} seconds before next request...')
                 time.sleep(delay)
             logger.info(
                 f'Submitting request for year={_request.year}, '
