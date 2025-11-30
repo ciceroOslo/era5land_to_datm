@@ -3,6 +3,7 @@
 # %%
 # Imports
 # %%
+import logging
 
 import ecmwf.datastores as ecmwfds
 
@@ -28,6 +29,13 @@ from era5land_to_datm.variables import (
     era5land_request_varnames,
     era5_datm_vars,
 )
+
+import logging_common
+
+# %%
+# Initialize logging
+# %%
+logger: logging.Logger = logging_common.initialize_logger()
 
 # %% 
 # Set the ranges of months and years to download

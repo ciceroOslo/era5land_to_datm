@@ -3,6 +3,8 @@
 # %%
 # Imports
 # %%
+import logging
+
 import ecmwf.datastores as ecmwfds
 
 import era5land_to_datm as etd
@@ -19,6 +21,13 @@ from era5land_to_datm.types import (
     VarSet,
     YearMonth,
 )
+
+import logging_common
+
+# %%
+# Initialize logging
+# %%
+logger: logging.Logger = logging_common.initialize_logger()
 
 # %%
 # Get the Remote instances for the previously sent requests
