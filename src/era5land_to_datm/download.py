@@ -31,6 +31,8 @@ send_ecmwf_datastore_request
     Remote instance.
 """
 import datetime
+import logging
+import time
 import typing as tp
 
 import pydantic
@@ -49,6 +51,8 @@ from .variables import (
 )
 
 
+
+default_logger: logging.Logger = logging.getLogger(__name__)
 
 ERA5LAND_FOR_DATM_DATASET_ID: tp.Final[EcmwfDatasetId] = (
     EcmwfDatasetId.ERA5LANDHRLY
@@ -313,6 +317,9 @@ class EcmfwRequestError(Exception):
 
 def send_ecmwf_datastore_request(
     requests: tp.Iterable[EcmwfDatastoreRequest],
+    *,
+    delay: float = 3.0,
+    logger: logging.Logger = default_logger,
 ) -> dict[VarSet, dict[YearMonth, ecmwfds.Remote]]:
     """Send the given EcmwfDatastoreRequest to the ECMWF data store and return
     a nested dictionary from VarSet and then YearMonth to the corresponding
@@ -322,6 +329,10 @@ def send_ecmwf_datastore_request(
     ----------
     requests : Iterable[EcmwfDatastoreRequest]
         Iterable of EcmwfDatastoreRequest instances to send.
+    delay : float, optional
+        Delay in seconds between sending each request. Default is 3.0 seconds.
+    logger : logging.Logger, optional
+        Logger to use for logging messages. Default is a module-level logger.
 
     Returns
     -------
@@ -337,21 +348,34 @@ def send_ecmwf_datastore_request(
         successfully sent requests, and the `remotes` attribute contains a
         dictionary of the corresponding Remote instances.
     """
+    if not isinstance(delay, (int, float)):
+        raise TypeError('`delay` must be a number representing seconds.')
+    if delay < 0.0:
+        raise ValueError('`delay` must be non-negative.')
     client: ecmwfds.Client = ecmwfds.Client()
     remotes: dict[VarSet, dict[YearMonth, ecmwfds.Remote]] = {}
     successful_requests: dict[VarSet, dict[YearMonth, EcmwfDatastoreRequest]] = {}
     try:
-        for request in requests:
-            remote: ecmwfds.Remote = client.submit(
-                collection_id=request.dataset_id.collection_id,
-                request=request.to_request_dict(),
+        for (_request_num, _request) in enumerate(requests):
+            if _request_num > 0 and delay > 0.0:
+                time.sleep(delay)
+            logger.info(
+                f'Submitting request for year={_request.year}, '
+                f'month={_request.month:02d}...'
             )
-            var_set: VarSet = request.variable
+            remote: ecmwfds.Remote = client.submit(
+                collection_id=_request.dataset_id.collection_id,
+                request=_request.to_request_dict(),
+            )
+            logger.info(
+                f'Request submitted with ID {remote.request_id}, status '
+                f'{remote.status}.')
+            var_set: VarSet = _request.variable
             year_month: YearMonth = (
-                YearMonth(year=request.year, month=request.month)
+                YearMonth(year=_request.year, month=_request.month)
             )
             remotes.setdefault(var_set, dict())[year_month] = remote
-            successful_requests.setdefault(var_set, dict())[year_month] = request
+            successful_requests.setdefault(var_set, dict())[year_month] = _request
     except Exception as e:
         raise EcmfwRequestError(
             'Error sending request to ECMWF data store.',
