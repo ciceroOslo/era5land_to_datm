@@ -33,7 +33,7 @@ from era5land_to_datm.variables import (
 # Set the ranges of months and years to download
 # %%
 years_months: list[YearMonth] = [
-    (_year, _month) for _year in range(2000, 2024 + 1)
+    YearMonth(_year, _month) for _year in range(2000, 2024 + 1)
     for _month in range(1, 12 + 1)
 ]
 
@@ -56,6 +56,6 @@ requests: dict[YearMonth, EcmwfDatastoreRequest] = create_era5land_request(
 # %%
 # Send the requests and store the Remote instances that are created
 # %%
-remotes: dict[YearMonth, ecmwfds.Remote] =  (
+remotes: dict[VarSet, dict[YearMonth, ecmwfds.Remote]] =  (
     send_ecmwf_datastore_request(requests.values())
 )
