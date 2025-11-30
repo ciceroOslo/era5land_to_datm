@@ -196,10 +196,10 @@ class EcmwfDatastoreRequest(pydantic.BaseModel):
         }
         if self.area is not None:
             request_dict['area'] = [
-                f'{self.area.north}',
-                f'{self.area.west}',
-                f'{self.area.south}',
-                f'{self.area.east}',
+                self.area.north,
+                self.area.west,
+                self.area.south,
+                self.area.east,
             ]
         return request_dict
     ###END def EcmwfDatastoreRequest.to_request_dict
