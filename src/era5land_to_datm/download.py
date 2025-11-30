@@ -166,8 +166,8 @@ class EcmwfDatastoreRequest(pydantic.BaseModel):
     variable: VarSet
     year: int
     month: int = pydantic.Field(ge=1, le=12)
-    day: tuple[DayInMonthInt, ...]
-    time: tuple[FullHourTime, ...]
+    day: tuple[DayInMonthInt, ...] = pydantic.Field(min_length=1)
+    time: tuple[FullHourTime, ...] = pydantic.Field(min_length=1)
     data_format: tp.Literal['grib', 'netcdf'] = 'grib'
     download_format: tp.Literal['unarchived', 'zip'] = 'unarchived'
     area: EcmwfArea | None = None
@@ -214,8 +214,8 @@ def create_era5land_request(
     years_months: tp.Iterable[YearMonth],
     variables: VarSet,
     *,
-    days: tp.Iterable[DayInMonthInt] = range(1, 31+1),
-    times: tp.Iterable[FullHourTime] = (
+    days: tp.Iterable[DayInMonthInt] = tuple(range(1, 31+1)),
+    times: tp.Iterable[FullHourTime] = tuple(
         datetime.time(hour=_h) for _h in range(0, 23+1)
     ),
     data_format: tp.Literal['grib', 'netcdf'] = 'grib',
@@ -356,7 +356,7 @@ def send_ecmwf_datastore_request(
     remotes: dict[VarSet, dict[YearMonth, ecmwfds.Remote]] = {}
     successful_requests: dict[VarSet, dict[YearMonth, EcmwfDatastoreRequest]] = {}
     try:
-        for (_request_num, _request) in enumerate(requests):
+        for _request_num, _request in enumerate(requests):
             if _request_num > 0 and delay > 0.0:
                 logger.info(f'Waiting {delay:.1f} seconds before next request...')
                 time.sleep(delay)
