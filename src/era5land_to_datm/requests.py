@@ -1,4 +1,4 @@
-"""Code to make requests and download ERA5 Land variables and GRIB files.
+"""Code to make requests for ERA5 Land variables and GRIB files.
 
 Classes
 -------
