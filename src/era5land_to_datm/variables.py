@@ -83,7 +83,9 @@ class Era5LandVarMapping[_T](UserDict[Era5LandVar, _T]):
     ###END def Era5LandVarMapping.__init__
 
     def __setitem__(self, key: Era5LandVar, value: _T) -> None:
-        if self.__frozen__:
+        # We need to check whether self.__frozen__ exists, since it may not have
+        # been set yet during the super().__init__ call in self.__init__
+        if getattr(self, '__frozen__', False):
             raise TypeError(
                 'This Era5LandVarMapping is frozen and cannot be modified.'
             )
