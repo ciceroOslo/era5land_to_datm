@@ -19,15 +19,10 @@ from era5land_to_datm.regions import (
     NORWAY_RECT_0125_REGION,
 )
 from era5land_to_datm.types import (
-    EcmwfDatasetId,
     YearMonth,
 )
 from era5land_to_datm.variables import (
-    Era5LandVarMapping,
-    Era5LandVar,
     VarSet,
-    era5land_grib_varnames,
-    era5land_request_varnames,
     era5_datm_vars,
 )
 
