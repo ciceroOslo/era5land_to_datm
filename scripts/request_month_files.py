@@ -10,6 +10,7 @@ import ecmwf.datastores as ecmwfds
 import era5land_to_datm as etd
 from era5land_to_datm.download import (
     EcmwfDatastoreRequest,
+    EcmfwRequestError,
     ERA5LAND_FOR_DATM_DATASET_ID,
     create_era5land_request,
     send_ecmwf_datastore_request,
@@ -64,6 +65,11 @@ requests: dict[YearMonth, EcmwfDatastoreRequest] = create_era5land_request(
 # %%
 # Send the requests and store the Remote instances that are created
 # %%
-remotes: dict[VarSet, dict[YearMonth, ecmwfds.Remote]] =  (
-    send_ecmwf_datastore_request(requests.values())
-)
+try:
+    remotes: dict[VarSet, dict[YearMonth, ecmwfds.Remote]] =  (
+        send_ecmwf_datastore_request(requests.values())
+    )
+except EcmfwRequestError as e:
+    logger.error(f"Error sending ECMWF datastore request: {e}")
+    request_error = e
+    raise
