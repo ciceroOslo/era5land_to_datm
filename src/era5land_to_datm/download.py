@@ -342,19 +342,16 @@ def send_ecmwf_datastore_request(
     successful_requests: dict[VarSet, dict[YearMonth, EcmwfDatastoreRequest]] = {}
     try:
         for request in requests:
-            remote = client.submit(
+            remote: ecmwfds.Remote = client.submit(
                 collection_id=request.dataset_id.collection_id,
-                **request.to_request_dict(),
+                request=request.to_request_dict(),
             )
             var_set: VarSet = request.variable
             year_month: YearMonth = (
                 YearMonth(year=request.year, month=request.month)
             )
-            if var_set not in remotes:
-                remotes[var_set] = {}
-                successful_requests[var_set] = {}
-            remotes[var_set][year_month] = remote
-            successful_requests[var_set][year_month] = request
+            remotes.setdefault(var_set, dict())[year_month] = remote
+            successful_requests.setdefault(var_set, dict())[year_month] = request
     except Exception as e:
         raise EcmfwRequestError(
             'Error sending request to ECMWF data store.',
@@ -362,3 +359,4 @@ def send_ecmwf_datastore_request(
             remotes=remotes,
         ) from e
     return remotes
+###END def send_ecmwf_datastore_request
