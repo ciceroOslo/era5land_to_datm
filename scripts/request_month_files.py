@@ -8,7 +8,7 @@ import logging
 import ecmwf.datastores as ecmwfds
 
 import era5land_to_datm as etd
-from era5land_to_datm.download import (
+from era5land_to_datm.requests import (
     EcmwfDatastoreRequest,
     EcmfwRequestError,
     ERA5LAND_FOR_DATM_DATASET_ID,
