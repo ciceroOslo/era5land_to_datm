@@ -35,7 +35,7 @@ logger: logging.Logger = logging_common.initialize_logger()
 # %%
 remotes: dict[str, ecmwfds.Remote] = get_remotes()
 remotes_dict: dict[VarSet, dict[YearMonth, ecmwfds.Remote]] = (
-    remotes_dict_by_vars_and_yearmonth(remotes)
+    remotes_dict_by_vars_and_yearmonth(remotes.values())
 )
 
 # %%
