@@ -36,6 +36,9 @@ import typing as tp
 
 import ecmwf.datastores as ecmwfds
 
+from .types import (
+    YearMonth,
+)
 from .variables import (
     VarSet,
 )
@@ -107,3 +110,29 @@ def get_remote_varset(
         )
     return VarSet(remote.request['variable'])
 ###END def get_remote_varset
+
+
+def get_remote_yearmonth(
+        remote: ecmwfds.Remote,
+) -> YearMonth:
+    """Get the YearMonth associated with a given Remote instance.
+
+    Parameters
+    ----------
+    remote : ecmwfds.Remote
+        The Remote instance to get the YearMonth for.
+
+    Returns
+    -------
+    YearMonth
+        The YearMonth corresponding to the year and month requested in the
+        Remote.
+    """
+    if not isinstance(remote, ecmwfds.Remote):
+        raise TypeError(
+            f'Expected ecmwfds.Remote, got {type(remote)}'
+        )
+    year: int = int(remote.request['year'])
+    month: int = int(remote.request['month'])
+    return YearMonth(year=year, month=month)
+###END def get_remote_yearmonth
