@@ -70,11 +70,14 @@ for _remote, _filepath in download_result.downloaded_files.items():
     print(f'  {_filepath}')
 
 print('\nThe following requests had no available files to download:')
-for _var_set, _year_month in remotes_dict_by_vars_and_yearmonth(
+_var_set: VarSet
+_year_month: YearMonth
+_year_month_dict: dict[YearMonth, ecmwfds.Remote]
+for _var_set, _year_month_dict in remotes_dict_by_vars_and_yearmonth(
     download_result.no_files_remotes
 ).items():
     print(f'  VarSet: {_var_set}')
-    for (_year, _month) in _year_month.keys():
+    for (_year, _month) in _year_month_dict.keys():
         print(f'    {_year:04d}-{_month:02d}')
 
 print('\nThe following downloads failed:')
