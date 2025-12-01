@@ -7,7 +7,6 @@ import logging
 
 import ecmwf.datastores as ecmwfds
 
-import era5land_to_datm as etd
 from era5land_to_datm.download import (
     DownloadFilesResult,
     get_remotes,
@@ -18,8 +17,10 @@ from era5land_to_datm.download import (
     retrieve_available_files,
 )
 from era5land_to_datm.types import (
-    VarSet,
     YearMonth,
+)
+from era5land_to_datm.variables import (
+    VarSet,
 )
 
 import logging_common
@@ -32,7 +33,7 @@ logger: logging.Logger = logging_common.initialize_logger()
 # %%
 # Get the Remote instances for the previously sent requests
 # %%
-remotes: dict[str, ecmwfds.Remote] = etd.download.get_remotes()
+remotes: dict[str, ecmwfds.Remote] = get_remotes()
 remotes_dict: dict[VarSet, dict[YearMonth, ecmwfds.Remote]] = (
     remotes_dict_by_vars_and_yearmonth(remotes)
 )
