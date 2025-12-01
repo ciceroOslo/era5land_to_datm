@@ -36,6 +36,10 @@ import typing as tp
 
 import ecmwf.datastores as ecmwfds
 
+from .variables import (
+    VarSet,
+)
+
 
 
 logger: logging.Logger = logging.getLogger(__name__)
@@ -80,3 +84,26 @@ def get_remotes(
         remotes[request_id] = client.get_remote(request_id)
     return remotes
 ###END def get_remotes
+
+
+def get_remote_varset(
+        remote: ecmwfds.Remote,
+) -> 'VarSet':
+    """Get the VarSet associated with a given Remote instance.
+
+    Parameters
+    ----------
+    remote : ecmwfds.Remote
+        The Remote instance to get the VarSet for.
+
+    Returns
+    -------
+    VarSet
+        The VarSet corresponding to the variables requested in the Remote.
+    """
+    if not isinstance(remote, ecmwfds.Remote):
+        raise TypeError(
+            f'Expected ecmwfds.Remote, got {type(remote)}'
+        )
+    return VarSet(remote.request['variable'])
+###END def get_remote_varset
