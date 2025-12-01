@@ -11,7 +11,8 @@ DownloadFilesResult
 Functions
 ---------
 get_remotes
-    Retrieve Remote instances for previously sent requests.
+    Retrieve Remote instances for previously sent requests, as a dictionary
+    keyed by request id.
 get_remote_varset
     Get the VarSet associated with a given Remote instance (i.e., the set of
     variables requested in that Remote).
@@ -30,3 +31,52 @@ retrieve_available_files
     returning a DownloadFilesResult with details on successes, unavailable
     files, and failures.
 """
+import logging
+import typing as tp
+
+import ecmwf.datastores as ecmwfds
+
+
+
+logger: logging.Logger = logging.getLogger(__name__)
+
+
+def get_remotes(
+        *,
+        limit: int = 100,
+) -> dict[str, ecmwfds.Remote]:
+    """Retrieve Remote instances for previously sent requests.
+
+    Parameters
+    ----------
+    limit : int, optional
+        The maximum number of Remote instances to retrieve. Default is 100. A
+        log message at log level DEBUG will state what limit was used, and will
+        be followed by a message at level WARNING if there are more the
+        number of instances hits this limit (which may mean there are more jobs
+        on the server that were not retrieved).
+
+    Returns
+    -------
+    dict[str, ecmwfds.Remote]
+        A dictionary mapping request ids to their corresponding Remote
+        instances.
+    """
+    client: ecmwfds.Client = ecmwfds.Client()
+    logger.debug(f'Retrieving up to {limit} request IDs from server...')
+    request_ids: list[str] = client.get_jobs(limit=limit).request_ids
+    if len(request_ids) >= limit:
+        logger.warning(
+            f'Received {len(request_ids)} request IDs from server, the same '
+            'number as the limit. There may be more requests on the server.'
+        )
+    else:
+        logger.debug(
+            f'Received {len(request_ids)} request IDs from server.'
+        )
+    remotes: dict[str, ecmwfds.Remote] = {}
+    for request_id in request_ids:
+        logger.debug(f'Retrieving Remote for request ID {request_id}...')
+        remotes[request_id] = client.get_remote(request_id)
+    return remotes
+###END def get_remotes
