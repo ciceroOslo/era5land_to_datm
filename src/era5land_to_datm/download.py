@@ -136,3 +136,30 @@ def get_remote_yearmonth(
     month: int = int(remote.request['month'])
     return YearMonth(year=year, month=month)
 ###END def get_remote_yearmonth
+
+
+def remotes_dict_by_vars_and_yearmonth(
+        remotes: tp.Iterable[ecmwfds.Remote],
+) -> dict[VarSet, dict[YearMonth, ecmwfds.Remote]]:
+    """Organize Remote instances into a nested dictionary keyed by VarSet and
+    YearMonth.
+
+    Parameters
+    ----------
+    remotes : Iterable[ecmwfds.Remote]
+        An iterable sequence of Remote instances to organize.
+
+    Returns
+    -------
+    dict[VarSet, dict[YearMonth, ecmwfds.Remote]]
+        A nested dictionary where the outer keys are VarSet instances, the inner
+        keys are YearMonth instances, and the values are the corresponding
+        Remote instances.
+    """
+    remotes_dict: dict[VarSet, dict[YearMonth, ecmwfds.Remote]] = {}
+    for remote in remotes:
+        var_set: VarSet = get_remote_varset(remote)
+        year_month: YearMonth = get_remote_yearmonth(remote)
+        remotes_dict.setdefault(var_set, {})[year_month] = remote
+    return remotes_dict
+###END def remotes_dict_by_vars_and_yearmonth
