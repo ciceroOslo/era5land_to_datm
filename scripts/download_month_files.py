@@ -66,8 +66,15 @@ download_result: DownloadFilesResult = (
 # Print summary of downloaded files
 # %%
 print('Download summary:\n')
-for _remote, _filepath in download_result.downloaded_files.items():
-    print('Downloaded the following files:')
+print('Downloaded the following files:')
+for _remote, _filepath in download_result.downloaded_files:
+    print(f'  {_filepath}')
+
+print(
+    'The following files were already present locally  and were not downloaded '
+    'again:'
+)
+for _remote, _filepath in download_result.existing_files:
     print(f'  {_filepath}')
 
 print('\nThe following requests had no available files to download:')

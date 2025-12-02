@@ -52,6 +52,7 @@ GRIB_FILENAME_FORMAT_DEFAULT : str | FilenameFormatCallable
 """
 from dataclasses import dataclass
 import logging
+import os
 from pathlib import Path
 import string
 import typing as tp
@@ -358,3 +359,145 @@ class DownloadFilesResult:
     no_files_remotes: list[ecmwfds.Remote]
     failed_remotes: list[RemoteErrorTuple]
 ###END class DownloadFilesResult
+
+
+def retrieve_available_files(
+        remotes: tp.Iterable[ecmwfds.Remote],
+        *,
+        download_dir: Path|str|None = None,
+        filename_format: str | FilenameFormatCallable = (
+            GRIB_FILENAME_FORMAT_DEFAULT
+        ),
+) -> DownloadFilesResult:
+    """Attempt to download available files for multiple Remote instances.
+
+    Parameters
+    ----------
+    remotes : Iterable[ecmwfds.Remote]
+        An iterable sequence of Remote instances to attempt to download files
+        for.
+    download_dir : Path | str | None, optional
+        The directory to save downloaded files to. If None, the current working
+        directory is used. Default is None.
+    filename_format : str | FilenameFormatCallable, optional
+        The format to use for naming downloaded GRIB files. The filenames will
+        be generated using the `make_grib_filename` function with this format.
+        See the documentation of that function for details. The default is
+        set by the module attribute `GRIB_FILENAME_FORMAT_DEFAULT`.
+
+    Returns
+    -------
+    DownloadFilesResult
+        An instance of DownloadFilesResult containing details on which files
+        were successfully downloaded, which were not available yet, and which
+        downloads failed.
+    """
+    downloaded_files: list[DownloadedFile] = []
+    existing_files: list[DownloadedFile] = []
+    no_files_remotes: list[ecmwfds.Remote] = []
+    failed_remotes: list[RemoteErrorTuple] = []
+
+    if download_dir is not None:
+        download_dir_path: Path = Path(download_dir)
+    else:
+        download_dir_path: Path = Path.cwd()
+    if not download_dir_path.exists():
+        raise FileNotFoundError(
+            f'Download directory {download_dir_path} does not exist.'
+        )
+    if not download_dir_path.is_dir():
+        raise NotADirectoryError(
+            f'Download directory {download_dir_path} is not a directory.'
+        )
+    if not os.access(download_dir_path, os.W_OK):
+        raise PermissionError(
+            f'Download directory {download_dir_path} is not writeable.'
+        )
+
+    for _remote in remotes:
+        var_set: VarSet = get_remote_varset(_remote)
+        year_month: YearMonth = get_remote_yearmonth(_remote)
+        filename: str = make_grib_filename(
+            var_set=var_set,
+            year_month=year_month,
+            filename_format=filename_format,
+        )
+        filepath: Path = download_dir_path / filename
+        if filepath.exists():
+            logger.debug(
+                f'File {filepath} already exists locally; skipping download '
+                f'for Remote with variables {var_set} for '
+                f'{year_month.year:04d}-{year_month.month:02d} (delete it if '
+                'you want to re-download).'
+            )
+            existing_files.append(
+                DownloadedFile(
+                    remote=_remote,
+                    path=filepath,
+                )
+            )
+            continue
+        try:
+            logger.debug(
+                f'Checking status of remote with id {_remote.request_id} for '
+                f'variables {var_set} in {year_month.year:04d}-'
+                f'{year_month.month:02d}...'
+            )
+            status: str = _remote.status
+            if status == 'failed':
+                failed_remotes.append(
+                    RemoteErrorTuple(
+                        remote=_remote,
+                        error=RuntimeError(
+                            f'Remote with id {_remote.request_id} has status '
+                            f'"failed".'
+                        ),
+                    )
+                )
+                logger.warning(
+                    f'Remote with id {_remote.request_id} has status "failed"; '
+                    'skipping download.'
+                )
+                continue
+            if _remote.results_ready:
+                logger.debug(
+                    f'Results ready for remote with id {_remote.request_id}; '
+                    'downloading...'
+                )
+                returned_path: str = _remote.download(target=str(filepath))
+                if Path(returned_path).resolve() != filepath.resolve():
+                    logger.error(
+                        f'Downloaded file path {returned_path} does not match '
+                        f'target path {filepath}; something unexpected '
+                        'happened.'
+                    )
+                downloaded_files.append(
+                    DownloadedFile(
+                        remote=_remote,
+                        path=Path(returned_path),
+                    )
+                )
+            else:
+                logger.info(
+                    f'No files available yet for remote with id '
+                    f'{_remote.request_id}; skipping download.'
+                )
+                no_files_remotes.append(_remote)
+        except Exception as e:
+            logger.error(
+                f'Error occurred while attempting to download files for '
+                f'remote with id {_remote.request_id}: {e}'
+            )
+            failed_remotes.append(
+                RemoteErrorTuple(
+                    remote=_remote,
+                    error=e,
+                )
+            )
+    return DownloadFilesResult(
+        downloaded_files=downloaded_files,
+        existing_files=existing_files,
+        no_files_remotes=no_files_remotes,
+        failed_remotes=failed_remotes,
+    )
+###END def retrieve_available_files
