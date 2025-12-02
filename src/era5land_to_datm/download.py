@@ -32,6 +32,9 @@ remotes_dict_by_vars_and_yearmonth
     Organize Remote instances into a nested dictionary keyed by VarSet and
     YearMonth, based on the `variable`, `year`, and `month` attributes of each
     Remote.
+get_dict_by_vars_and_yearmonth_values
+    Convert a nested dictionary of objects keyed by VarSet and YearMonth into a
+    list of the nested object values.
 retrieve_available_files
     Attempt to download available files for multiple Remote instances,
     returning a DownloadFilesResult with details on successes, unavailable
@@ -276,3 +279,30 @@ def remotes_dict_by_vars_and_yearmonth(
         remotes_dict.setdefault(var_set, {})[year_month] = remote
     return remotes_dict
 ###END def remotes_dict_by_vars_and_yearmonth
+
+
+def get_dict_by_vars_and_yearmonth_values[_ObjType](
+        nested_dict: dict[VarSet, dict[YearMonth, _ObjType]],
+) -> list[_ObjType]:
+    """Convert a nested dictionary of objects keyed by VarSet and YearMonth
+    into a list of the nested object values.
+
+    Parameters
+    ----------
+    nested_dict : dict[VarSet, dict[YearMonth, object]]
+        A nested dictionary where the outer keys are VarSet instances, the inner
+        keys are YearMonth instances, and the values are objects of any single
+        type.
+
+    Returns
+    -------
+    list[_ObjType]
+        A list of all the objects contained in the nested
+        dictionary.
+    """
+    return [
+        _obj
+        for _year_month_dict in nested_dict.values()
+        for _obj in _year_month_dict.values()
+    ]
+###END def get_dict_by_vars_and_yearmonth_values
