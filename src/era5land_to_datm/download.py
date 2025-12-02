@@ -8,6 +8,12 @@ DownloadFilesResult
     which files were successfully downloaded, which were not available yet, and
     which downloads failed.
 
+Protocols
+---------
+FilenameFormatCallable
+    A protocol defining a callable that takes a VarSet and YearMonth and
+    returns a string filename. Used for custom naming of downloaded GRIB files.
+
 Functions
 ---------
 get_remotes
@@ -30,8 +36,15 @@ retrieve_available_files
     Attempt to download available files for multiple Remote instances,
     returning a DownloadFilesResult with details on successes, unavailable
     files, and failures.
+
+Attributes
+----------
+GRIB_FILENAME_FORMAT_DEFAULT : str | FilenameFormatCallable
+    The default format for naming downloaded GRIB files, which is used by the
+    `make_grib_filename` function if no custom format is provided.
 """
 import logging
+import string
 import typing as tp
 
 import ecmwf.datastores as ecmwfds
@@ -46,6 +59,106 @@ from .variables import (
 
 
 logger: logging.Logger = logging.getLogger(__name__)
+
+
+class FilenameFormatCallable(tp.Protocol):
+    """A protocol defining a callable that takes a VarSet and YearMonth and
+    returns a string filename. Used for custom naming of downloaded GRIB files.
+    """
+
+    def __call__(
+            self,
+            var_set: VarSet,
+            year_month: YearMonth,
+    ) -> str:
+        """Generate a filename based on the provided VarSet and YearMonth.
+
+        Parameters
+        ----------
+        var_set : VarSet
+            The set of variables for which the file is being named.
+        year_month : YearMonth
+            The year and month for which the file is being named.
+
+        Returns
+        -------
+        str
+            The generated filename.
+        """
+        ...
+
+    ###END def FilenameFormatCallable.__call__
+
+###END class FilenameFormatCallable
+
+
+GRIB_FILENAME_FORMAT_DEFAULT: str | FilenameFormatCallable = (
+    'era5land_{variables}_{year:04d}_{month:02d}.grib'
+)
+
+
+def make_grib_filename(
+        var_set: VarSet,
+        year_month: YearMonth,
+        filename_format: str | FilenameFormatCallable = (
+            GRIB_FILENAME_FORMAT_DEFAULT
+        ),
+) -> str:
+    """Create a standardized filename for the downloaded GRIB file based on the
+    set of variables and year/month requested.
+
+    Parameters
+    ----------
+    var_set : VarSet
+        The set of variables for which the file is being named, as a set or
+        frozenset.
+    year_month : YearMonth
+        The year and month for which the file is being named, as a named tuple
+        with fields `year` and `month`.
+    filename_format : str | FilenameFormatCallable, optional
+        The format to use for the filename. If a string is provided, it should
+        be a format string compatible with `str.format()`, using the fields
+        `variables`, `year`, and `month`. These fields will be substituted by the
+        following:
+          * `variables`: The shortnames (variable shortnames used in the grib files)
+            of each variable in alphanumeric order, joined by underscores.
+          * `year`: The year as an integer (formatting will be applied as per
+            the format string).
+          * `month`: The month as an integer (formatting will be applied as per
+            the format string).
+        If a callable is provided, it should conform to the
+        `FilenameFormatCallable` protocol, which receives the variables as a
+        `VarSet` (frozenset) and the year and month as a `YearMonth` (named
+        tuple), in parameters named `var_set` and `year_month`, respecitvely.
+        Default is `GRIB_FILENAME_FORMAT_DEFAULT`, which is a format string of
+        the form `'era5land_{variables}_{year:04d}_{month:02d}.grib'`.
+
+    Returns
+    -------
+    str
+        The generated filename based on the provided VarSet and YearMonth.
+    """
+    if isinstance(filename_format, str):
+        vars_str: str = '_'.join(
+            sorted(_var for _var in var_set)
+        )
+        filename: str = filename_format.format(
+            variables=vars_str,
+            year=year_month.year,
+            month=year_month.month,
+        )
+    elif callable(filename_format):
+        filename: str = filename_format(
+            var_set=var_set,
+            year_month=year_month,
+        )
+    else:
+        raise TypeError(
+            'filename_format must be a str or a callable conforming to the '
+            'FilenameFormatCallable protocol.'
+        )
+    return filename
+###END def make_grib_filename
 
 
 def get_remotes(
