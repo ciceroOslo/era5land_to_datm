@@ -77,6 +77,13 @@ print(
 for _remote, _filepath in download_result.existing_files:
     print(f'  {_filepath}')
 
+print(
+    'The following files were already present locally  and were not downloaded '
+    'again:'
+)
+for _remote, _filepath in download_result.existing_files:
+    print(f'  {_filepath}')
+
 print('\nThe following requests had no available files to download:')
 _var_set: VarSet
 _year_month: YearMonth
