@@ -7,6 +7,10 @@ DownloadFilesResult
     through the `retrieve_available_files` function. Provides information on
     which files were successfully downloaded, which were not available yet, and
     which downloads failed.
+DownloadedFile
+    A namedtuple representing a successfully downloaded file, with the Remote
+    instance and the local Path as elements (in that order), with field names
+    `remote` and `path`, respectively.
 
 Protocols
 ---------
@@ -46,13 +50,16 @@ GRIB_FILENAME_FORMAT_DEFAULT : str | FilenameFormatCallable
     The default format for naming downloaded GRIB files, which is used by the
     `make_grib_filename` function if no custom format is provided.
 """
+from dataclasses import dataclass
 import logging
+from pathlib import Path
 import string
 import typing as tp
 
 import ecmwf.datastores as ecmwfds
 
 from .types import (
+    RemoteErrorTuple,
     YearMonth,
 )
 from .variables import (
@@ -98,6 +105,21 @@ class FilenameFormatCallable(tp.Protocol):
 GRIB_FILENAME_FORMAT_DEFAULT: str | FilenameFormatCallable = (
     'era5land_{variables}_{year:04d}_{month:02d}.grib'
 )
+
+
+class DownloadedFile(tp.NamedTuple):
+    """A namedtuple representing a successfully downloaded file.
+
+    Attributes
+    ----------
+    remote : ecmwf.datastores.Remote
+        The Remote instance associated with the downloaded file.
+    path : str
+        The local file path where the downloaded file is saved.
+    """
+    remote: ecmwfds.Remote
+    path: Path
+###END class DownloadedFile
 
 
 def make_grib_filename(
@@ -306,3 +328,33 @@ def get_dict_by_vars_and_yearmonth_values[_ObjType](
         for _obj in _year_month_dict.values()
     ]
 ###END def get_dict_by_vars_and_yearmonth_values
+
+
+@dataclass(kw_only=True)
+class DownloadFilesResult:
+    """Represents the result of attempting to download files for multiple
+    requests.
+
+    Attributes
+    ----------
+    downloaded_files : list[DownloadedFile]
+        A list of DownloadedFile instances (namedtuples) representing
+        successfully downloaded files, each containing the Remote instance and
+        the local Path of the downloaded file.
+    existing_files : list[DownloadedFile]
+        A list of DownloadedFile instances (namedtuples) representing files that
+        were already present locally and therefore not downloaded again, each
+        containing the Remote instance and the local Path of the existing file.
+    no_files_remotes : list[ecmwf.datastore.Remote]
+        A list of Remote instances for which no files were available to
+        download.
+    failed_remotes : list[RemoteErrorTuple]
+        A list of RemoteErrorTuple instances (namedtuples with fields `remote`
+        and `exception`) representing Remote instances for which the download
+        failed, along with the associated exception.
+    """
+    downloaded_files: list[DownloadedFile]
+    existing_files: list[DownloadedFile]
+    no_files_remotes: list[ecmwfds.Remote]
+    failed_remotes: list[RemoteErrorTuple]
+###END class DownloadFilesResult

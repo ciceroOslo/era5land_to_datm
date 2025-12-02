@@ -37,8 +37,8 @@ logger: logging.Logger = logging_common.initialize_logger()
 # Set the ranges of months and years to download
 # %%
 years_months: list[YearMonth] = [
-    YearMonth(_year, _month) for _year in range(2000, 2024 + 1)
-    for _month in range(1, 12 + 1)
+    YearMonth(_year, _month) for _year in range(2000, 2001+1)
+    for _month in range(2, 3+1)
 ]
 
 # %%

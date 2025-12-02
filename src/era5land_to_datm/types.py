@@ -18,6 +18,8 @@ Era5LandVar
 import enum
 import typing as tp
 
+import ecmwf.datastores as ecmwfds
+
 
 
 class YearMonth(tp.NamedTuple):
@@ -33,6 +35,21 @@ class YearMonth(tp.NamedTuple):
     year: int
     month: int
 ###END class YearMonth
+
+
+class RemoteErrorTuple(tp.NamedTuple):
+    """A namedtuple representing an error associated with a Remote instance.
+
+    Attributes
+    ----------
+    remote : ecmwf.datastores.Remote
+        The Remote instance associated with the error.
+    error : Exception
+        The exception representing the error.
+    """
+    remote: ecmwfds.Remote
+    error: Exception
+###END class RemoteErrorTuple
 
 
 class EcmwfDatasetId(enum.StrEnum):
