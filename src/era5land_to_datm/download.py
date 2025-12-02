@@ -166,7 +166,7 @@ def make_grib_filename(
     """
     if isinstance(filename_format, str):
         vars_str: str = '_'.join(
-            sorted(_var for _var in var_set)
+            sorted(_var.grib_varname for _var in var_set)
         )
         filename: str = filename_format.format(
             variables=vars_str,
