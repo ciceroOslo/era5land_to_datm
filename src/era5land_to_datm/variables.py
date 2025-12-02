@@ -75,7 +75,27 @@ class Era5LandVar(enum.StrEnum):
 
 ###END class Era5LandVar
 
-VarSet = frozenset[Era5LandVar]
+class VarSet(frozenset[Era5LandVar]):
+    """A frozenset of Era5LandVar instances representing a set of variables.
+
+    The class constructor accepts any iterable of Era5LandVar enum members or
+    strings that can be converted into Era5LandVar enum members, but will raise
+    an error if any element cannot be converted.
+    """
+
+    def __new__(
+            cls,
+            iterable: tp.Iterable[Era5LandVar|str],
+            *args,
+            **kwargs
+    ) -> 'VarSet':
+        return super().__new__(
+            cls,
+            (Era5LandVar(_value) for _value in iterable)
+        )
+    ###END def VarSet.__new__
+
+###END class VarSet
 
 
 class Era5LandVarMapping[_T](UserDict[Era5LandVar, _T]):
@@ -162,7 +182,7 @@ era5land_grib_varnames_reverse: dict[str, Era5LandVar] = {
     _value: _key for _key, _value in era5land_grib_varnames.items()
 }
 
-era5_datm_vars: tp.Final[VarSet] = frozenset(
+era5_datm_vars: tp.Final[VarSet] = VarSet(
     {
         Era5LandVar.D2M,
         Era5LandVar.SP,
