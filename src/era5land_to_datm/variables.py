@@ -13,6 +13,12 @@ era5land_request_varnames : dict[Era5LandVar, str]
 era5land_grib_varnames : dict[Era5LandVar, str]
     Mapping from Era5LandVar to the variable names used in the GRIB files that
     are downloaded from EAR5-Land data requests.
+era5land_request_varnames_reverse : dict[str, Era5LandVar]
+    Reverse mapping from variable names used in the `variable` field of
+    ERA5-Land data requests to Era5LandVar.
+era5land_grib_varnames_reverse : dict[str, Era5LandVar]
+    Reverse mapping from variable names used in the GRIB files that are
+    downloaded from EAR5-Land data requests to Era5LandVar.
 era5_datm_vars : frozenset[Era5LandVar]
     The set of ERA5-Land variables needed for DATM.
 """
@@ -49,6 +55,23 @@ class Era5LandVar(enum.StrEnum):
         """
         return era5land_grib_varnames[self]
     ###END def Era5LandVar.grib_varname
+
+    @classmethod
+    def _missing_(cls, value: object) -> 'Era5LandVar':
+        """Check whether the value matches a grib varname or request varname,
+        and return the corresponding Era5LandVar if so.
+        """
+        if isinstance(value, str):
+            if (
+                _value := era5land_request_varnames_reverse.get(value)
+            ) is not None:
+                return _value
+            if (
+                _value := era5land_grib_varnames_reverse.get(value)
+            ) is not None:
+                return _value
+        return super()._missing_(value)
+    ###END def Era5LandVar._missing_
 
 ###END class Era5LandVar
 
@@ -117,6 +140,10 @@ era5land_request_varnames: Era5LandVarMapping[str] = Era5LandVarMapping(
     frozen=True,
 )
 
+era5land_request_varnames_reverse: dict[str, Era5LandVar] = {
+    _value: _key for _key, _value in era5land_request_varnames.items()
+}
+
 era5land_grib_varnames: Era5LandVarMapping[str] = Era5LandVarMapping(
     {
         Era5LandVar.D2M: 'd2m',
@@ -130,6 +157,10 @@ era5land_grib_varnames: Era5LandVarMapping[str] = Era5LandVarMapping(
     },
     frozen=True,
 )
+
+era5land_grib_varnames_reverse: dict[str, Era5LandVar] = {
+    _value: _key for _key, _value in era5land_grib_varnames.items()
+}
 
 era5_datm_vars: tp.Final[VarSet] = frozenset(
     {
