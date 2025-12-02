@@ -271,8 +271,9 @@ def get_remote_yearmonth(
         raise TypeError(
             f'Expected ecmwfds.Remote, got {type(remote)}'
         )
-    year: int = int(remote.request['year'])
-    month: int = int(remote.request['month'])
+    request: dict[str, tp.Any] = remote.request
+    year: int = int(request['year'])
+    month: int = int(request['month'])
     return YearMonth(year=year, month=month)
 ###END def get_remote_yearmonth
 
