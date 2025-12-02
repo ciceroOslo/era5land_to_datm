@@ -286,6 +286,11 @@ class EcmfwRequestError(Exception):
     `send_ecmwf_datastore_request`.
     """
 
+    __slots__ = (
+        'successful_requests',
+        'remotes',
+    )
+
     def __init__(
         self,
         message: str,
@@ -308,8 +313,8 @@ class EcmfwRequestError(Exception):
             the corresponding Remote instance.
         """
         super().__init__(message)
-        self.successful_requests = successful_requests
-        self.remotes = remotes
+        self.successful_requests: dict[VarSet, dict[YearMonth, EcmwfDatastoreRequest]] = successful_requests
+        self.remotes: dict[VarSet, dict[YearMonth, ecmwfds.Remote]] = remotes
     ###END def EcmfwRequestError.__init__
 
 ###END class EcmfwRequestError
