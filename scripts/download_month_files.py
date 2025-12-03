@@ -16,6 +16,9 @@ from era5land_to_datm.download import (
     remotes_dict_by_vars_and_yearmonth,
     retrieve_available_files,
 )
+from era5land_to_datm.remote import (
+    CachedRemote,
+)
 from era5land_to_datm.types import (
     YearMonth,
 )
@@ -33,7 +36,7 @@ logger: logging.Logger = logging_common.initialize_logger()
 # %%
 # Get the Remote instances for the previously sent requests
 # %%
-remotes: dict[str, ecmwfds.Remote] = get_remotes()
+remotes: dict[str, CachedRemote] = get_remotes()
 remotes_dict: dict[VarSet, dict[YearMonth, ecmwfds.Remote]] = (
     remotes_dict_by_vars_and_yearmonth(remotes.values())
 )

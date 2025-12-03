@@ -59,6 +59,11 @@ import typing as tp
 
 import ecmwf.datastores as ecmwfds
 
+from .remote import (
+    CachedClient,
+    CachedRemote,
+    get_client,
+)
 from .types import (
     RemoteErrorTuple,
     YearMonth,
@@ -108,7 +113,7 @@ GRIB_FILENAME_FORMAT_DEFAULT: str | FilenameFormatCallable = (
 )
 
 
-class DownloadedFile(tp.NamedTuple):
+class DownloadedFile[RemoteT: ecmwfds.Remote](tp.NamedTuple):
     """A namedtuple representing a successfully downloaded file.
 
     Attributes
@@ -118,7 +123,7 @@ class DownloadedFile(tp.NamedTuple):
     path : str
         The local file path where the downloaded file is saved.
     """
-    remote: ecmwfds.Remote
+    remote: RemoteT
     path: Path
 ###END class DownloadedFile
 
@@ -190,8 +195,11 @@ def make_grib_filename(
 def get_remotes(
         *,
         limit: int = 100,
-) -> dict[str, ecmwfds.Remote]:
+) -> dict[str, CachedRemote]:
     """Retrieve Remote instances for previously sent requests.
+
+    This function retrieves the Remote instances as CachedRemote instances,
+    using a CachedClient to avoid repeated API calls for the same Remote.
 
     Parameters
     ----------
@@ -208,7 +216,7 @@ def get_remotes(
         A dictionary mapping request ids to their corresponding Remote
         instances.
     """
-    client: ecmwfds.Client = ecmwfds.Client()
+    client: CachedClient = get_client()
     logger.debug(f'Retrieving up to {limit} request IDs from server...')
     request_ids: list[str] = client.get_jobs(limit=limit).request_ids
     if len(request_ids) >= limit:
@@ -220,7 +228,7 @@ def get_remotes(
         logger.debug(
             f'Received {len(request_ids)} request IDs from server.'
         )
-    remotes: dict[str, ecmwfds.Remote] = {}
+    remotes: dict[str, CachedRemote] = {}
     for request_id in request_ids:
         logger.debug(f'Retrieving Remote for request ID {request_id}...')
         remotes[request_id] = client.get_remote(request_id)
@@ -278,25 +286,27 @@ def get_remote_yearmonth(
 ###END def get_remote_yearmonth
 
 
-def remotes_dict_by_vars_and_yearmonth(
-        remotes: tp.Iterable[ecmwfds.Remote],
-) -> dict[VarSet, dict[YearMonth, ecmwfds.Remote]]:
+def remotes_dict_by_vars_and_yearmonth[RemoteT: ecmwfds.Remote](
+        remotes: tp.Iterable[RemoteT],
+) -> dict[VarSet, dict[YearMonth, RemoteT]]:
     """Organize Remote instances into a nested dictionary keyed by VarSet and
     YearMonth.
 
     Parameters
     ----------
     remotes : Iterable[ecmwfds.Remote]
-        An iterable sequence of Remote instances to organize.
+        An iterable sequence of Remote instances (or subclasses of Remote, like
+        CachedRemote) to organize.
 
     Returns
     -------
     dict[VarSet, dict[YearMonth, ecmwfds.Remote]]
         A nested dictionary where the outer keys are VarSet instances, the inner
         keys are YearMonth instances, and the values are the corresponding
-        Remote instances.
+        Remote instances. The returned instances are the same as those provided
+        in the input iterable (and of the same type).
     """
-    remotes_dict: dict[VarSet, dict[YearMonth, ecmwfds.Remote]] = {}
+    remotes_dict: dict[VarSet, dict[YearMonth, RemoteT]] = {}
     for remote in remotes:
         var_set: VarSet = get_remote_varset(remote)
         year_month: YearMonth = get_remote_yearmonth(remote)
@@ -333,7 +343,7 @@ def get_dict_by_vars_and_yearmonth_values[_ObjType](
 
 
 @dataclass(kw_only=True)
-class DownloadFilesResult:
+class DownloadFilesResult[RemoteT: ecmwfds.Remote]:
     """Represents the result of attempting to download files for multiple
     requests.
 
@@ -357,19 +367,19 @@ class DownloadFilesResult:
     """
     downloaded_files: list[DownloadedFile]
     existing_files: list[DownloadedFile]
-    no_files_remotes: list[ecmwfds.Remote]
-    failed_remotes: list[RemoteErrorTuple]
+    no_files_remotes: list[RemoteT]
+    failed_remotes: list[RemoteErrorTuple[RemoteT]]
 ###END class DownloadFilesResult
 
 
-def retrieve_available_files(
-        remotes: tp.Iterable[ecmwfds.Remote],
+def retrieve_available_files[RemoteT: ecmwfds.Remote](
+        remotes: tp.Iterable[RemoteT],
         *,
         download_dir: Path|str|None = None,
         filename_format: str | FilenameFormatCallable = (
             GRIB_FILENAME_FORMAT_DEFAULT
         ),
-) -> DownloadFilesResult:
+) -> DownloadFilesResult[RemoteT]:
     """Attempt to download available files for multiple Remote instances.
 
     Parameters
@@ -393,10 +403,10 @@ def retrieve_available_files(
         were successfully downloaded, which were not available yet, and which
         downloads failed.
     """
-    downloaded_files: list[DownloadedFile] = []
-    existing_files: list[DownloadedFile] = []
-    no_files_remotes: list[ecmwfds.Remote] = []
-    failed_remotes: list[RemoteErrorTuple] = []
+    downloaded_files: list[DownloadedFile[RemoteT]] = []
+    existing_files: list[DownloadedFile[RemoteT]] = []
+    no_files_remotes: list[RemoteT] = []
+    failed_remotes: list[RemoteErrorTuple[RemoteT]] = []
 
     if download_dir is not None:
         download_dir_path: Path = Path(download_dir)
@@ -432,7 +442,7 @@ def retrieve_available_files(
                 'you want to re-download).'
             )
             existing_files.append(
-                DownloadedFile(
+                DownloadedFile[RemoteT](
                     remote=_remote,
                     path=filepath,
                 )
@@ -473,7 +483,7 @@ def retrieve_available_files(
                         'happened.'
                     )
                 downloaded_files.append(
-                    DownloadedFile(
+                    DownloadedFile[RemoteT](
                         remote=_remote,
                         path=Path(returned_path),
                     )
@@ -490,12 +500,12 @@ def retrieve_available_files(
                 f'remote with id {_remote.request_id}: {e}'
             )
             failed_remotes.append(
-                RemoteErrorTuple(
+                RemoteErrorTuple[RemoteT](
                     remote=_remote,
                     error=e,
                 )
             )
-    return DownloadFilesResult(
+    return DownloadFilesResult[RemoteT](
         downloaded_files=downloaded_files,
         existing_files=existing_files,
         no_files_remotes=no_files_remotes,

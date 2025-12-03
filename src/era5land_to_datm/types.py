@@ -37,7 +37,7 @@ class YearMonth(tp.NamedTuple):
 ###END class YearMonth
 
 
-class RemoteErrorTuple(tp.NamedTuple):
+class RemoteErrorTuple[RemoteT: ecmwfds.Remote](tp.NamedTuple):
     """A namedtuple representing an error associated with a Remote instance.
 
     Attributes
@@ -47,7 +47,7 @@ class RemoteErrorTuple(tp.NamedTuple):
     error : Exception
         The exception representing the error.
     """
-    remote: ecmwfds.Remote
+    remote: RemoteT
     error: Exception
 ###END class RemoteErrorTuple
 
