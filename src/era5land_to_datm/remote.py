@@ -141,7 +141,7 @@ def get_client(
         verify: bool = True,
         timeout: float | tuple[float, float] = 60,
         progress: bool = True,
-        cleanup: bool = True,
+        cleanup: bool = False,
         sleep_max: float = 120,
         retry_after: float = 120,
         maximum_tries: int = 500,
