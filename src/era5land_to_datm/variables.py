@@ -105,12 +105,16 @@ class VarSet(frozenset[Era5LandVar]):
         source_type: tp.Any,
         handler: pydantic.GetCoreSchemaHandler,
     ) -> pydantic_core.core_schema.CoreSchema:
-        return pydantic_core.core_schema.frozenset_schema(
+        input_schema = pydantic_core.core_schema.frozenset_schema(
             items_schema=pydantic_core.core_schema.enum_schema(
                 cls=Era5LandVar,
                 members=list(Era5LandVar),
                 sub_type='str',
             )
+        )
+        return pydantic_core.core_schema.no_info_after_validator_function(
+            function=lambda v: VarSet(v),
+            schema=input_schema,
         )
     ###END def VarSet.__get_pydantic_core_schema__
 
