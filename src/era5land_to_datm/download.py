@@ -55,6 +55,7 @@ import logging
 import os
 from pathlib import Path
 import string
+import time
 import typing as tp
 
 import ecmwf.datastores as ecmwfds
@@ -195,6 +196,7 @@ def make_grib_filename(
 def get_remotes(
         *,
         limit: int = 100,
+        delay_between_calls: float = 0.5,
 ) -> dict[str, CachedRemote]:
     """Retrieve Remote instances for previously sent requests.
 
@@ -209,6 +211,9 @@ def get_remotes(
         be followed by a message at level WARNING if there are more the
         number of instances hits this limit (which may mean there are more jobs
         on the server that were not retrieved).
+    delay_between_calls : float, optional
+        The delay in seconds between API calls to retrieve each Remote instance.
+        Default is 1.0 second. This can help avoid hitting API rate limits.
 
     Returns
     -------
@@ -225,13 +230,18 @@ def get_remotes(
             'number as the limit. There may be more requests on the server.'
         )
     else:
-        logger.debug(
+        logger.info(
             f'Received {len(request_ids)} request IDs from server.'
         )
     remotes: dict[str, CachedRemote] = {}
-    for request_id in request_ids:
-        logger.debug(f'Retrieving Remote for request ID {request_id}...')
+    for _request_num, request_id in enumerate(request_ids):
+        logger.info(
+            f'Retrieving Remote for request ID {request_id} '
+            f'({_request_num + 1}/{len(request_ids)})...'
+        )
         remotes[request_id] = client.get_remote(request_id)
+        logger.info(f'Sleeping for {delay_between_calls} seconds before next call...')
+        time.sleep(delay_between_calls)
     return remotes
 ###END def get_remotes
 

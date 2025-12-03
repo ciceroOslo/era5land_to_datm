@@ -17,6 +17,7 @@ get_client
     created Client instance for reuse on subsequent calls, so that only one
     Client instance is created for a given set of parameters.
 """
+from collections.abc import Callable
 import functools
 import inspect
 import typing as tp
@@ -144,25 +145,25 @@ def get_client(
         sleep_max: float = 120,
         retry_after: float = 120,
         maximum_tries: int = 500,
+        log_callback: Callable|None = None,
 ) -> CachedClient:
     """Get a CachedClient instance for making requests.
     
     The function accepts the same parameters as the Client constructor, except
-    for the non-hashable `request` parameter. Note that the defaults can be
+    for the non-hashable `session` parameter. Note that the defaults can be
     different.All parameters are passed directly to the Client constructor.
     Please see the documentation of `ecmwf.datastores.Client` for details.
     """
     local_values: dict[str, tp.Any] = locals()
-    parameters: dict[str, tp.Any] = {
-        _param.name: _param for _param in inspect.signature(
+    parameters: list[str] = [
+        _param.name for _param in inspect.signature(
             ecmwfds.Client.__init__
-        ).parameters.values()
+        ).parameters.values() if _param.name not in {'self', 'session'}
+    ]
+    init_args: dict[str, tp.Any] = {
+        _name: local_values[_name]
+        for _name in parameters if local_values[_name] is not None
     }
-    init_args: dict[str, tp.Any] = {}
-    for param_name in parameters:
-        if param_name == 'request':
-            continue
-        init_args[param_name] = locals()[param_name]
     client: CachedClient = CachedClient(**init_args)
     return client
 ###END def get_client
