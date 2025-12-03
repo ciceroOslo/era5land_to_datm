@@ -235,13 +235,14 @@ def get_remotes(
         )
     remotes: dict[str, CachedRemote] = {}
     for _request_num, request_id in enumerate(request_ids):
+        if _request_num > 0:
+            logger.info(f'Sleeping for {delay_between_calls} seconds before next call...')
+            time.sleep(delay_between_calls)
         logger.info(
             f'Retrieving Remote for request ID {request_id} '
             f'({_request_num + 1}/{len(request_ids)})...'
         )
         remotes[request_id] = client.get_remote(request_id)
-        logger.info(f'Sleeping for {delay_between_calls} seconds before next call...')
-        time.sleep(delay_between_calls)
     return remotes
 ###END def get_remotes
 
