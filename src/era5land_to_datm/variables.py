@@ -26,6 +26,9 @@ from collections import UserDict
 import enum
 import typing as tp
 
+import pydantic
+import pydantic_core.core_schema
+
 
 
 class Era5LandVar(enum.StrEnum):
@@ -94,6 +97,22 @@ class VarSet(frozenset[Era5LandVar]):
             (Era5LandVar(_value) for _value in iterable)
         )
     ###END def VarSet.__new__
+
+    # We override __new__, so pydantic needs a custom schema
+    @classmethod
+    def __get_pydantic_core_schema__(
+        cls,
+        source_type: tp.Any,
+        handler: pydantic.GetCoreSchemaHandler,
+    ) -> pydantic_core.core_schema.CoreSchema:
+        return pydantic_core.core_schema.frozenset_schema(
+            items_schema=pydantic_core.core_schema.enum_schema(
+                cls=Era5LandVar,
+                members=list(Era5LandVar),
+                sub_type='str',
+            )
+        )
+    ###END def VarSet.__get_pydantic_core_schema__
 
 ###END class VarSet
 
