@@ -37,6 +37,7 @@ logger: logging.Logger = logging_common.initialize_logger()
 # Get the Remote instances for the previously sent requests
 # %%
 remotes: dict[str, CachedRemote] = get_remotes()
+# %%
 remotes_dict: dict[VarSet, dict[YearMonth, CachedRemote]] = (
     remotes_dict_by_vars_and_yearmonth(remotes.values())
 )
