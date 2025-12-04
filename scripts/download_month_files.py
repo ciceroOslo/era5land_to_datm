@@ -9,6 +9,7 @@ import os
 import ecmwf.datastores as ecmwfds
 
 from era5land_to_datm.download import (
+    DownloadedFile,
     DownloadFilesResult,
     get_remotes,
     get_remote_yearmonth,
@@ -90,7 +91,7 @@ print(f'Changed working directory to {pathlib.Path.cwd()}')
 # %%
 # Retrieve the available files for the completed requests
 # %%
-download_result: DownloadFilesResult = (
+download_result: DownloadFilesResult[CachedRemote] = (
     retrieve_available_files(remotes.values())
 )
 
@@ -119,7 +120,7 @@ for _remote, _filepath in download_result.existing_files:
 print('\nThe following requests had no available files to download:')
 _var_set: VarSet
 _year_month: YearMonth
-_year_month_dict: dict[YearMonth, ecmwfds.Remote]
+_year_month_dict: dict[YearMonth, CachedRemote]
 for _var_set, _year_month_dict in remotes_dict_by_vars_and_yearmonth(
     download_result.no_files_remotes
 ).items():
@@ -137,3 +138,49 @@ for _var_set, _year_month_errors in failed_downloads.items():
     print(f'  VarSet: {_var_set}')
     for (_year, _month), _error in _year_month_errors.items():
         print(f'    {_year:04d}-{_month:02d}: {repr(_error)}')
+
+
+# %%
+# Delete the remotes for the files that were successfully downloaded.
+#
+# The first cell below deletes the downloaded instances, the second cell deletes
+# the ones that were already present locally and not downloaded again.
+#
+# Follow the same pattern manually if you wish to delete any remotes that had
+# errors associated with them.
+#
+# **NB!** Since this may not be wanted, the variable
+# `clean_up_downloaded_remotes` must be set to True, or the deletions will not
+# be carried out.
+# %%
+clean_up_downloaded_remotes: bool = False
+deleted_remotes: list[tuple[YearMonth, DownloadedFile[CachedRemote]]] = []
+logger.info('Deleting downloaded remotes...')
+if clean_up_downloaded_remotes:
+    for _remote, _filepath in download_result.downloaded_files:
+        _year_month = get_remote_yearmonth(_remote)
+        logger.info(
+            f'Deleting Remote with id {_remote.request_id} for '
+            f'{_year_month.year:04d}-{_year_month.month:02d} after '
+            f'downloading file {_filepath}...'
+        )
+        _remote.delete()
+        deleted_remotes.append(
+            (_year_month, DownloadedFile(_remote, _filepath))
+        )
+        time.sleep(0.5)
+# %%
+logger.info('Deleting remotes for files already present locally...')
+if clean_up_downloaded_remotes:
+    for _remote, _filepath in download_result.existing_files:
+        _year_month = get_remote_yearmonth(_remote)
+        logger.info(
+            f'Deleting Remote with id {_remote.request_id} for '
+            f'{_year_month.year:04d}-{_year_month.month:02d} after '
+            f'not downloading file {_filepath} (already present locally)...'
+        )
+        _remote.delete()
+        deleted_remotes.append(
+            (_year_month, DownloadedFile(_remote, _filepath))
+        )
+        time.sleep(0.5)
