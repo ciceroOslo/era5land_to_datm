@@ -446,7 +446,7 @@ def retrieve_available_files[RemoteT: ecmwfds.Remote](
         )
         filepath: Path = download_dir_path / filename
         if filepath.exists():
-            logger.debug(
+            logger.info(
                 f'File {filepath} already exists locally; skipping download '
                 f'for Remote with variables {var_set} for '
                 f'{year_month.year:04d}-{year_month.month:02d} (delete it if '
@@ -482,9 +482,9 @@ def retrieve_available_files[RemoteT: ecmwfds.Remote](
                 )
                 continue
             if _remote.results_ready:
-                logger.debug(
+                logger.info(
                     f'Results ready for remote with id {_remote.request_id}; '
-                    'downloading...'
+                    f'downloading to {str(filepath)}...'
                 )
                 returned_path: str = _remote.download(target=str(filepath))
                 if Path(returned_path).resolve() != filepath.resolve():
