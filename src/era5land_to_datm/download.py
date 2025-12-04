@@ -376,8 +376,8 @@ class DownloadFilesResult[RemoteT: ecmwfds.Remote]:
         and `exception`) representing Remote instances for which the download
         failed, along with the associated exception.
     """
-    downloaded_files: list[DownloadedFile]
-    existing_files: list[DownloadedFile]
+    downloaded_files: list[DownloadedFile[RemoteT]]
+    existing_files: list[DownloadedFile[RemoteT]]
     no_files_remotes: list[RemoteT]
     failed_remotes: list[RemoteErrorTuple[RemoteT]]
 ###END class DownloadFilesResult
