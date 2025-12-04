@@ -4,6 +4,7 @@
 # Imports
 # %%
 import logging
+import os
 
 import ecmwf.datastores as ecmwfds
 
@@ -26,7 +27,21 @@ from era5land_to_datm.variables import (
     VarSet,
 )
 
+# %%
+# Dynamically import logging_common.py from the scripts/ directory (i.e., the
+# same directory as this script file). We need to import the file with a path
+# set using `__file__`, because the working directory may not be the same as the
+# script directory when this script is run, and it will usually also not be in
+# the Python module search path. The script is also not inside a package, so we
+# cannote use `__name__` or a relative import (`__name__` will be `__main__`).
+# %%
+import sys
+import pathlib
+script_dir: pathlib.Path = pathlib.Path(__file__).parent.resolve()
+if str(script_dir) not in sys.path:
+    sys.path.insert(0, str(script_dir))
 import logging_common
+# logging_common = importlib.import_module('logging_common')
 
 # %%
 # Initialize logging
@@ -58,6 +73,19 @@ for _var_set, _year_month_statuses in statuses.items():
     print(f'VarSet: {_var_set}')
     for (_year, _month), _status in _year_month_statuses.items():
         print(f'  {_year:04d}-{_month:02d}: {_status}')
+
+# %%
+# Set the download directory
+# %%
+download_dir = pathlib.Path(
+    '/cluster/shared/noresm/inputdata/cicero_mods'
+    '/ERA5-Land_NorSink/original_GRIB_NorwayRect/'
+)
+# %%
+# Change to the download directory, without attempting to create it.
+# %%
+os.chdir(download_dir)
+print(f'Changed working directory to {pathlib.Path.cwd()}')
 
 # %%
 # Retrieve the available files for the completed requests
