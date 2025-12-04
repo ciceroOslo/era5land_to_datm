@@ -37,6 +37,7 @@ pydantic = ">=2.12.5"
 [tool.pixi.feature.dev.dependencies]
 ipykernel = "*"
 ipython = "*"
+jupyter_server = ">=2.17.0"
 
 [tool.pixi.environments]
 default = ["dev", "default"]
