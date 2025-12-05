@@ -37,9 +37,12 @@ logger: logging.Logger = logging_common.initialize_logger()
 # Set the ranges of months and years to download
 # %%
 years_months: list[YearMonth] = [
-    YearMonth(_year, _month) for _year in range(2000, 2009+1)
+    YearMonth(_year, _month) for _year in range(2010, 2019+1)
     for _month in range(1, 12+1)
 ]
+
+print(f'Requesting data for {len(years_months)} year-months:')
+print(',\n'.join(f'{ym.year:04d}-{ym.month:02d}' for ym in years_months))
 
 # %%
 # Select variables to download. If not otherwise specified, use the defaults,
