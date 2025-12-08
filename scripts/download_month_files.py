@@ -5,6 +5,7 @@
 # %%
 import logging
 import os
+import re
 import time
 
 import ecmwf.datastores as ecmwfds
@@ -140,6 +141,31 @@ for _var_set, _year_month_errors in failed_downloads.items():
     for (_year, _month), _error in _year_month_errors.items():
         print(f'    {_year:04d}-{_month:02d}: {repr(_error)}')
 
+# %%
+# Check and write all files that are available locally. **NB!** This code
+# searches for files using a regex. It does not change when
+# `make_grib_filename` changes, so you must change it manually if you change
+# the code in `make_grib_filename` or provide a custom file name pattern.
+# %%
+# Create a regex pattern to extract year and month from filenames, then make a
+# dict with YearMonth keys and a tuple of file size and file name as values.
+year_month_filename_pattern: re.Pattern = re.compile(
+    r'^.*_(?P<year>\d{4})_(?P<month>\d{2})\.grib$'
+)
+existing_files_info: dict[YearMonth, tuple[int, str]] = {}
+for _path in download_dir.glob('*.grib'):
+    _match = year_month_filename_pattern.match(_path.name)
+    if _match is not None:
+        _year: int = int(_match.group('year'))
+        _month: int = int(_match.group('month'))
+        existing_files_info[
+            YearMonth(_year, _month)
+        ] = (_path.stat().st_size, _path.name)
+    else:
+        logger.warning(
+            f'File {_path} does not match expected filename pattern; '
+            'skipping...'
+        )
 
 # %%
 # Delete the remotes for the files that were successfully downloaded.
