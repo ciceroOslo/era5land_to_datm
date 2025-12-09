@@ -166,6 +166,11 @@ for _path in download_dir.glob('*.grib'):
             f'File {_path} does not match expected filename pattern; '
             'skipping...'
         )
+# %%
+existing_file_sizes: dict[YearMonth, int] = {
+    _year_month: _file_info[0]
+    for _year_month, _file_info in existing_files_info.items()
+}
 
 # %%
 # Delete the remotes for the files that were successfully downloaded.
