@@ -38,7 +38,7 @@ logger: logging.Logger = logging_common.initialize_logger()
 # %%
 years_months: list[YearMonth] = [
     YearMonth(year=_year, month=_month)
-    for _year in range(1992, 1999+1)
+    for _year in range(1984, 1991+1)
     for _month in range(1, 12+1)
 ]
 
