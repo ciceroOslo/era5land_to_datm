@@ -169,7 +169,7 @@ for _path in download_dir.glob('*.grib'):
 # %%
 existing_file_sizes: dict[YearMonth, int] = {
     _year_month: _file_info[0]
-    for _year_month, _file_info in existing_files_info.items()
+    for _year_month, _file_info in sorted(existing_files_info.items())
 }
 
 # %%
