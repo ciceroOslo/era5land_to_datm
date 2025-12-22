@@ -38,8 +38,8 @@ logger: logging.Logger = logging_common.initialize_logger()
 # %%
 years_months: list[YearMonth] = [
     YearMonth(year=_year, month=_month)
-    for _year in range(2020, 2020+1)
-    for _month in range(10, 12+1)
+    for _year in range(1976, 1983+1)
+    for _month in range(1, 12+1)
 ]
 
 print(f'Requesting data for {len(years_months)} year-months:')
