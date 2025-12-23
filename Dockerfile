@@ -3,10 +3,12 @@
 FROM ghcr.io/prefix-dev/pixi:latest
 
 # 2. Set the working directory
-WORKDIR /app
+WORKDIR /era5land_to_datm
 
 # 3. Copy dependencies first (better caching)
-COPY pyproject.toml ./
+COPY pyproject.toml .gitignore ./
+ADD src/ ./src/
+ADD scripts/ ./scripts/
 
 # 4. Install dependencies
 # --frozen ensures we stick exactly to the lockfile
