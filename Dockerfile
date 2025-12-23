@@ -6,11 +6,11 @@ FROM ghcr.io/prefix-dev/pixi:latest
 WORKDIR /app
 
 # 3. Copy dependencies first (better caching)
-COPY pyproject.toml pixi.lock ./
+COPY pyproject.toml ./
 
 # 4. Install dependencies
 # --frozen ensures we stick exactly to the lockfile
-RUN pixi install --frozen
+RUN pixi install
 
 # 5. Create an entrypoint script to activate the environment
 # The 'pixi shell-hook' command generates the shell code needed to activate the environment.
