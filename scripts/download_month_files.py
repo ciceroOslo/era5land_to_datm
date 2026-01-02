@@ -173,6 +173,39 @@ existing_file_sizes: dict[YearMonth, int] = {
 }
 
 # %%
+# Print a report of the range of files that are present, and any gaps within
+# that range.
+# %%
+min_year_month: YearMonth = min(existing_file_sizes.keys())
+max_year_month: YearMonth = max(existing_file_sizes.keys())
+print(
+    f'Existing files range from {min_year_month.year:04d}-'
+    f'{min_year_month.month:02d} to {max_year_month.year:04d}-'
+    f'{max_year_month.month:02d}.'
+)
+# %%
+all_year_months_in_range: set[YearMonth] = set(
+    YearMonth(year=_year, month=_month)
+    for _year in range(min_year_month.year+1, max_year_month.year)
+    for _month in range(1, 12 + 1)
+).union(
+    YearMonth(year=min_year_month.year, month=_month)
+    for _month in range(min_year_month.month, 12 + 1)
+).union(
+    YearMonth(year=max_year_month.year, month=_month)
+    for _month in range(1, max_year_month.month + 1)
+)
+missing_year_months: set[YearMonth] = (
+    all_year_months_in_range - set(existing_file_sizes.keys())
+)
+if missing_year_months:
+    print('Missing files for the following year-months:')
+    for _year_month in sorted(missing_year_months):
+        print(f'  {_year_month.year:04d}-{_year_month.month:02d}')
+else:
+    print('No missing files within the range of existing files.')
+
+# %%
 # Delete the remotes for the files that were successfully downloaded.
 #
 # The first cell below deletes the downloaded instances, the second cell deletes
