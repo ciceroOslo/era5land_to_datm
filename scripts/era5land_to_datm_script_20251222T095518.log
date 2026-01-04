@@ -1,0 +1,20 @@
+2025-12-22T10:55:18+0100 - root - INFO - Logger initialized.
+2025-12-22T10:55:18+0100 - root - INFO - Logging to file: /cluster/home/janko/src/era5land_to_datm/scripts/era5land_to_datm_script_20251222T095518.log
+2025-12-22T10:55:32+0100 - ecmwf.datastores.processing - INFO - [2025-12-03T00:00:00Z] To improve our C3S service, we need to hear from you! Please complete this very short [survey](https://confluence.ecmwf.int/x/E7uBEQ/). Thank you.
+2025-12-22T10:55:32+0100 - era5land_to_datm.requests - INFO - Submitting request for year=2020, month=10...
+2025-12-22T10:55:32+0100 - ecmwf.datastores.processing - INFO - [2025-12-11T00:00:00] Please note that a dedicated catalogue entry for this dataset, post-processed and stored in Analysis Ready Cloud Optimized (ARCO) format (Zarr), is available for optimised time-series retrievals (i.e. for retrieving data from selected variables for a single point over an extended period of time in an efficient way). You can discover it [here](https://cds.climate.copernicus.eu/datasets/reanalysis-era5-land-timeseries?tab=overview)
+2025-12-22T10:55:32+0100 - ecmwf.datastores.processing - INFO - Request ID is 890fb9d0-f6ab-418b-8017-bda1d893f0d2
+2025-12-22T10:55:32+0100 - ecmwf.datastores.processing - INFO - status has been updated to accepted
+2025-12-22T10:55:32+0100 - era5land_to_datm.requests - INFO - Request submitted with ID 890fb9d0-f6ab-418b-8017-bda1d893f0d2, status accepted.
+2025-12-22T10:55:32+0100 - era5land_to_datm.requests - INFO - Waiting 3.0 seconds before next request...
+2025-12-22T10:55:35+0100 - era5land_to_datm.requests - INFO - Submitting request for year=2020, month=11...
+2025-12-22T10:55:36+0100 - ecmwf.datastores.processing - INFO - [2025-12-11T00:00:00] Please note that a dedicated catalogue entry for this dataset, post-processed and stored in Analysis Ready Cloud Optimized (ARCO) format (Zarr), is available for optimised time-series retrievals (i.e. for retrieving data from selected variables for a single point over an extended period of time in an efficient way). You can discover it [here](https://cds.climate.copernicus.eu/datasets/reanalysis-era5-land-timeseries?tab=overview)
+2025-12-22T10:55:36+0100 - ecmwf.datastores.processing - INFO - Request ID is 687b003f-6839-4d0c-9d59-726a3a93dbac
+2025-12-22T10:55:36+0100 - ecmwf.datastores.processing - INFO - status has been updated to accepted
+2025-12-22T10:55:36+0100 - era5land_to_datm.requests - INFO - Request submitted with ID 687b003f-6839-4d0c-9d59-726a3a93dbac, status accepted.
+2025-12-22T10:55:36+0100 - era5land_to_datm.requests - INFO - Waiting 3.0 seconds before next request...
+2025-12-22T10:55:39+0100 - era5land_to_datm.requests - INFO - Submitting request for year=2020, month=12...
+2025-12-22T10:55:39+0100 - ecmwf.datastores.processing - INFO - [2025-12-11T00:00:00] Please note that a dedicated catalogue entry for this dataset, post-processed and stored in Analysis Ready Cloud Optimized (ARCO) format (Zarr), is available for optimised time-series retrievals (i.e. for retrieving data from selected variables for a single point over an extended period of time in an efficient way). You can discover it [here](https://cds.climate.copernicus.eu/datasets/reanalysis-era5-land-timeseries?tab=overview)
+2025-12-22T10:55:39+0100 - ecmwf.datastores.processing - INFO - Request ID is 6815cbe7-b6d2-4044-9187-3f55dcc5790e
+2025-12-22T10:55:39+0100 - ecmwf.datastores.processing - INFO - status has been updated to accepted
+2025-12-22T10:55:39+0100 - era5land_to_datm.requests - INFO - Request submitted with ID 6815cbe7-b6d2-4044-9187-3f55dcc5790e, status accepted.
