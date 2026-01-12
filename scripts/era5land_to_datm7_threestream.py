@@ -15,6 +15,18 @@ import xarray as xr
 
 
 
+class Era5Dim(enum.StrEnum):
+    """String enum for ERA5 Land dimension ids."""
+    
+    DATE = 'time'
+    STEP = 'step'
+
+###END class Era5Dim
+
+class Era5Var(enum.StrEnum):
+    """String enum for ERA5 Land variable identifiers."""
+
+
 def main(
         *,
         source_file: Path,
@@ -27,7 +39,7 @@ def main(
     Parameters
     ----------
     source_file : Path
-        Path to the ERA5 Land GRIB file for the current month or other timer
+        Path to the ERA5 Land GRIB file for the current month or other time
         period.
     next_source_file : Path | None, optional
         Path to the ERA5 Land GRIB file for the subsequent time period. Some
@@ -47,7 +59,7 @@ def main(
     source_ds: xr.Dataset = open_era5land_grib(
         file=source_file,
         next_file=next_source_file,
-        eager=eager,
+        use_chunks=not eager,
     )
 
 
@@ -56,8 +68,9 @@ def open_era5land_grib(
         file: Path,
         *,
         next_file: Path|None = None,
-        eager: bool = True,
-        time_dim: str = Era5Var.TIME,
+        use_chunks: bool = False,
+        date_dim: str = Era5Dim.DATE,
+        step_dim: str = Era5Dim.STEP,
 ) -> xr.Dataset:
     """Opens an ERA5 Land GRIB file, optionally with the next file for
     cumulative variables.
@@ -71,11 +84,33 @@ def open_era5land_grib(
         it will be lazily opened, and the first time step will be extracted and
         concatenated to the main dataset along the time dimension.  Optional, by
         default None.
-    eager : bool, optional
-        Whether to load the entire dataset into memory before returning. Note
-        that this option only affects the main file (`file`). `next_file` is
-        always opened lazily before extracting the first time step.
+    use_chunks : bool, optional
+        Whether to use chunking (with dask). If False, the returned dataset will
+        use xarray's default lazy loading mechanism without chunking. By default
+        False.
     time_dim : str, optional
         Name of the time dimension in the dataset. By default given by the
         string enum `Era5Var.TIME`.
     """
+    chunk_option: str|int|None = 'auto' if use_chunks else None
+    era5_ds: xr.Dataset = xr.open_dataset(
+        file,
+        chunks=chunk_option,
+    )
+    if next_file is not None:
+        next_ds: xr.Dataset = xr.open_dataset(
+            next_file,
+            chunks='auto',
+        ).isel({date_dim: 0, step_dim: -1})
+        source_last_date = era5_ds[date_dim].isel({date_dim: -1}).item()
+        next_first_date = next_ds[date_dim].item()
+        if source_last_date != next_first_date:
+            raise ValueError(
+                f'The last date in the source file ({source_last_date}) does not '
+                f'match the first date in the next file ({next_first_date}).'
+            )
+        if not set(era5_ds.variables).issuperset(set(next_ds.variables)):
+            raise ValueError(
+                'The next file contains variables that are not present in the '
+                'source file.'
+            )
