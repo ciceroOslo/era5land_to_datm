@@ -1,5 +1,16 @@
 """Definitions and names of variables used in ERA5-Land to DATM conversion.
 
+Enums
+-----
+Era5LandVar
+    Enumeration of ERA5-Land variables available for download.
+Datm7Var
+    Enumeration of DATM7 variables.
+Datm7Coord
+    Enumeration of DATM7 coordinate variables.
+Datm7Attr
+    Enumeration of DATM7 variable attributes.
+
 Classes
 -------
 Era5LandVarMapping
@@ -21,6 +32,20 @@ era5land_grib_varnames_reverse : dict[str, Era5LandVar]
     downloaded from EAR5-Land data requests to Era5LandVar.
 era5_datm_vars : frozenset[Era5LandVar]
     The set of ERA5-Land variables needed for DATM.
+datm7_var_ids : dict[Datm7Var|Datm7Coord, str]
+    Variable IDs used in DATM7 netCDF files for each variable (including
+    coordinate variables).
+datm7_var_longname : dict[Datm7Var|Datm7Coord, str]
+    Long name attribute used in DATM7 netCDF files for each variable.
+datm7_var_units : dict[Datm7Var|Datm7Coord, str]
+    Units attribute used in DATM7 netCDF files for each variable. Note that the
+    time coordinate (Datm7Coord.TIME) does not have a unit atribute at all, and
+    is not included in this mapping.
+datm7_var_mode : dict[Datm7Var, str]
+    Mode attribute used in DATM7 netCDF files for each data variable. The
+    possible values are `'time-dependent'` and `'time-invariant'`.
+datm7_var_attrs : dict[Datm7Var|Datm7Coord, dict[str, str]]
+    Attributes of each variable used in DATM7 netCDF files.
 """
 from collections import UserDict
 import enum
@@ -217,3 +242,106 @@ era5_datm_vars: tp.Final[VarSet] = VarSet(
         Era5LandVar.STRD,
     }
 )
+
+
+class Datm7Var(enum.StrEnum):
+    """Enumeration of DATM7 data variables.
+
+    The string value of each member is in principle equal to the variable id
+    that is used in DATM7 netCDF files, but you should use the ones given in
+    the attribute `datm_var_ids` to be sure. The enums used here will not
+    change and cannot be changed if different variable ids need to be used for
+    some reason, but the mapping in `datm_varname` can be updated if needed.
+
+    This enum class only contains data variables. Coordinate variables are
+    instead given in the `Datm7Coord` enum.
+    """
+
+    TBOT = 'TBOT'
+    PSRF = 'PSRF'
+    QBOT = 'QBOT'
+    WIND = 'WIND'
+    FLDS = 'FLDS'
+    FSDS = 'FSDS'
+    PRECTmms = 'PRECTmms'
+
+###END class Datm7Var
+
+class Datm7Coord(enum.StrEnum):
+    """Enumeration of DATM7 coordinate variables."""
+
+    LONGXY = 'LONGXY'
+    LATIXY = 'LATIXY'
+    TIME = 'time'
+    LON = 'lon'
+    LAT = 'lat'
+
+###END class Datm7Coord
+
+datm7_var_ids: dict[Datm7Var|Datm7Coord, str] = {
+    _member: _member.value for _member in Datm7Var
+}
+
+datm7_var_longname: dict[Datm7Var|Datm7Coord, str] = {
+    Datm7Coord.TIME: 'observation time',
+    Datm7Coord.LON: 'longitude',
+    Datm7Coord.LAT: 'latitude',
+    Datm7Coord.LONGXY: 'longitude',
+    Datm7Coord.LATIXY: 'latitude',
+    Datm7Var.PRECTmms: 'PRECTmms total precipitation',
+    Datm7Var.FSDS: 'incident shortwave radiation',
+    Datm7Var.TBOT: 'temperature at the lowest atm level',
+    Datm7Var.PSRF: 'surface pressure at the lowest atm level',
+    Datm7Var.QBOT: 'specific humidity at the lowest atm level',
+    Datm7Var.WIND: 'wind at the lowest atm level',
+    Datm7Var.FLDS: 'incident longwave radiation'
+}
+
+datm7_var_units: dict[Datm7Var|Datm7Coord, str] = {
+    Datm7Coord.LON: 'degrees_east',
+    Datm7Coord.LAT: 'degrees_north',
+    Datm7Coord.LONGXY: 'degrees_east',
+    Datm7Coord.LATIXY: 'degrees_north',
+    Datm7Var.PRECTmms: 'mm H2O / sec',
+    Datm7Var.FSDS: 'W/m**2',
+    Datm7Var.TBOT: 'K',
+    Datm7Var.PSRF: 'Pa',
+    Datm7Var.QBOT: 'kg/kg',
+    Datm7Var.WIND: 'm/s',
+    Datm7Var.FLDS: 'W/m**2'
+}
+
+datm7_var_mode: dict[Datm7Var|Datm7Coord, str] = {
+    Datm7Coord.LON: 'time-invariant',
+    Datm7Coord.LAT: 'time-invariant',
+    Datm7Coord.LONGXY: 'time-invariant',
+    Datm7Coord.LATIXY: 'time-invariant',
+    Datm7Var.PRECTmms: 'time-dependent',
+    Datm7Var.FSDS: 'time-dependent',
+    Datm7Var.TBOT: 'time-dependent',
+    Datm7Var.PSRF: 'time-dependent',
+    Datm7Var.QBOT: 'time-dependent',
+    Datm7Var.WIND: 'time-dependent',
+    Datm7Var.FLDS: 'time-dependent',
+}
+
+class Datm7Attr(enum.StrEnum):
+    """Enumeration of DATM7 variable attributes."""
+
+    LONG_NAME = 'long_name'
+    UNITS = 'units'
+    MODE = 'mode'
+
+###END class Datm7Attr
+
+datm7_var_attrs: dict[Datm7Var|Datm7Coord, dict[Datm7Attr, str]] = {
+    _var: {
+        _attrname: _dict[_var]
+        for _attrname, _dict in (
+            (Datm7Attr.LONG_NAME, datm7_var_longname),
+            (Datm7Attr.UNITS, datm7_var_units),
+            (Datm7Attr.MODE, datm7_var_mode),
+        ) if _var in _dict
+    }
+    for _var in tuple(Datm7Var) + tuple(Datm7Coord)
+}
