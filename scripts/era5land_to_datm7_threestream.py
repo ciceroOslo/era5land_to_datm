@@ -17,18 +17,6 @@ from era5land_to_datm.file_io import open_era5land_grib
 
 
 
-class Era5Dim(enum.StrEnum):
-    """String enum for ERA5 Land dimension ids."""
-
-    DATE = 'time'
-    STEP = 'step'
-
-###END class Era5Dim
-
-class Era5Var(enum.StrEnum):
-    """String enum for ERA5 Land variable identifiers."""
-
-
 def main(
         *,
         source_file: Path,

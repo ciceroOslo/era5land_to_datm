@@ -10,6 +10,8 @@ from pathlib import Path
 
 import xarray as xr
 
+from era5land_to_datm.dimensions import Era5LandDim
+
 
 
 def open_era5land_grib(
@@ -17,8 +19,8 @@ def open_era5land_grib(
         *,
         next_file: Path|None = None,
         use_chunks: bool = False,
-        date_dim: str = Era5Dim.DATE,
-        step_dim: str = Era5Dim.STEP,
+        date_dim: str = Era5LandDim.DATE,
+        step_dim: str = Era5LandDim.STEP,
 ) -> xr.Dataset:
     """Opens an ERA5 Land GRIB file, optionally with the next file for
     cumulative variables.
@@ -38,12 +40,11 @@ def open_era5land_grib(
         False.
     date_dim : str, optional
         Name of the time/date dimension in the ERA5 Land dataset. By default
-        given by the string enum `Era5Dim.DATE`.
+        given by the string enum `Era5LandDim.DATE`.
     step_dim : str, optional
         Name of the "step" dimension (intra-date timediff relative to midnight)
         in the ERA5 Land dataset. By default given by the string enum
-        `Era5Dim.STEP`.
-
+        `Era5LandDim.STEP`.
     Returns
     -------
     xr.Dataset
