@@ -88,9 +88,26 @@ def open_era5land_grib(
         Whether to use chunking (with dask). If False, the returned dataset will
         use xarray's default lazy loading mechanism without chunking. By default
         False.
-    time_dim : str, optional
-        Name of the time dimension in the dataset. By default given by the
-        string enum `Era5Var.TIME`.
+    date_dim : str, optional
+        Name of the time/date dimension in the ERA5 Land dataset. By default
+        given by the string enum `Era5Dim.DATE`.
+    step_dim : str, optional
+        Name of the "step" dimension (intra-date timediff relative to midnight)
+        in the ERA5 Land dataset. By default given by the string enum
+        `Era5Dim.STEP`.
+
+    Returns
+    -------
+    xr.Dataset
+        The ERA5 Land dataset.
+
+    Raises
+    ------
+    ValueError
+        If the last date in the source file does not match the first date in the
+        next file, if the last intra-date time step in the source file does not
+        match the *last* intra-date time step in the next file, or if the next
+        file contains variables that are not present in the source file.
     """
     chunk_option: str|int|None = 'auto' if use_chunks else None
     era5_ds: xr.Dataset = xr.open_dataset(
@@ -114,3 +131,20 @@ def open_era5land_grib(
                 'The next file contains variables that are not present in the '
                 'source file.'
             )
+        source_last_step = era5_ds[step_dim].isel({step_dim: -1}).item()
+        next_last_step = next_ds[step_dim].item()
+        if source_last_step != next_last_step:
+            raise ValueError(
+                f'The last intra-date time step in the source file '
+                f'({source_last_step}) does not match the last intra-date time '
+                f'step in the next file ({next_last_step}).'
+            )
+        for _var in era5_ds.data_vars:
+            era5_ds[_var].loc[
+                {
+                    date_dim: source_last_date,
+                    step_dim: source_last_step,
+                }
+            ] = next_ds[_var]
+    return era5_ds
+###END def open_era5land_grib
