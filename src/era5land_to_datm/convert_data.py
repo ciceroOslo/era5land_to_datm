@@ -4,6 +4,12 @@ Functions
 ---------
 make_datm_ds
     Creates a DATM xarray Dataset from an opened ERA5 Land xarray Dataset.
+decumulate_era5land_var
+    Differences cumulative ERA5 Land variables along the intra-day step
+    dimension, to produce a DataArray where each value gives the cumulated value
+    for the previous time step only. The value of each time step can then be
+    averaged with the next time step and divided by 2 times the time step length
+    to produce an average rate value.
 """
 import xarray as xr
 
@@ -118,3 +124,40 @@ def make_datm_ds(
     )
     return target_ds
 ###END def make_datm_ds
+
+
+def decumulate_era5land_var(
+        source: xr.DataArray,
+        *,
+        step_dim: str = Era5LandDim.STEP,
+) -> xr.DataArray:
+    """Differences cumulative ERA5 Land variables along the intra-day step
+    dimension, to produce a DataArray where each value gives the cumulated value
+    for the previous time step only. The value of each time step can then be
+    averaged with the next time step and divided by 2 times the time step length
+    to produce an average rate value.
+
+    Parameters
+    ----------
+    source : xr.DataArray
+        The source ERA5 Land cumulative variable DataArray. Must have a step
+        dimension.
+    step_dim : str, optional
+        The name of the intra-day step dimension. By default `Era5LandDim.STEP`.
+    """
+    if step_dim not in source.dims:
+        raise ValueError(
+            f'The source DataArray must have a step dimension {step_dim}.'
+        )
+    decumulated: xr.DataArray = xr.concat(
+        [
+            source.isel({step_dim: 0}),
+            source.diff(
+                dim=step_dim,
+                label='upper',
+            ),
+        ],
+        dim=step_dim,
+    )
+    return decumulated
+###END def decumulate_era5land_var
