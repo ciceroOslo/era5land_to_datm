@@ -27,6 +27,7 @@ def main(
         *,
         source_file: Path,
         next_source_file: Path|None = None,
+        previous_source_file: Path|None = None,
         output_streams: Sequence[Datm7Stream | str] = tuple(Datm7Stream),
         output_files: (
             Mapping[Datm7Stream, Path]
@@ -45,9 +46,16 @@ def main(
     next_source_file : Path | None, optional
         Path to the ERA5 Land GRIB file for the subsequent time period. Some
         variables require data from the first time step of the next period,
-        notably radiation variables, which are cumulative in the ERA5 land data,
-        but intensity-based in DATM7. If None, these variables will have missing
-        values in the last time step of the output. Optional, by default None.
+        notably radiation and precipitation variables, which are cumulative in
+        the ERA5 land data, but intensity-based in DATM7. If None, these
+        variables will have missing values in the last time step of the output.
+        Optional, by default None.
+    previous_source_file : Path | None, optional
+        Path to the ERA5 Land GRIB file for the previous time period. This file
+        may be needed for the same reasons as `next_source_file`, namely that
+        cumulative variables need to be differenced, which requires having the
+        last time step of the previous period available. If None, the first time
+        step of the output will have missing values for these variables.
     output_streams : Sequence[Datm7Stream | str], optional
         Sequence of Datm7Stream enum values or their string representations,
         indicating which output streams to generate. Optional, by default all
@@ -97,6 +105,7 @@ def main(
     source_ds: xr.Dataset = open_era5land_grib(
         file=source_file,
         next_file=next_source_file,
+        previous_file=previous_source_file,
         use_chunks=not eager,
     )
     for _target_stream in output_streams:

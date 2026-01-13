@@ -4,6 +4,9 @@ Enums
 -----
 Era5Dim
     String enum for ERA5 Land dimension ids.
+ERA5LandTimeLayout
+    Enumeration of possibble time layouts in ERA5 land data (linear, or date
+    plus intradate timediff step).
 """
 import enum
 
@@ -16,3 +19,14 @@ class Era5LandDim(enum.StrEnum):
     STEP = 'step'
 
 ###END class Era5Dim
+
+
+class ERA5LandTimeLayout(enum.StrEnum):
+    """Enumeration of possibble time layouts in ERA5 land data (linear, or date
+    plus intradate timediff step).
+    """
+
+    LINEAR = 'linear'
+    DATE_STEP = 'date_step'
+
+###END class ERA5LandTimeLayout

@@ -18,6 +18,7 @@ def open_era5land_grib(
         file: Path,
         *,
         next_file: Path|None = None,
+        previous_file: Path|None = None,
         use_chunks: bool = False,
         date_dim: str = Era5LandDim.DATE,
         step_dim: str = Era5LandDim.STEP,
@@ -32,8 +33,13 @@ def open_era5land_grib(
     next_file : Path | None, optional
         Path to the next ERA5 Land GRIB file for cumulative variables. If given,
         it will be lazily opened, and the first time step will be extracted and
-        concatenated to the main dataset along the time dimension.  Optional, by
+        concatenated to the main dataset along the time dimension. Optional, by
         default None.
+    previous_file : Path | None, optional
+        Path to the previous ERA5 Land GRIB file for cumulative variables. If
+        given, it will be lazily opened, and the last time step will be
+        extracted and concatenated to the main dataset along the time dimension.
+        Optional, by default None.
     use_chunks : bool, optional
         Whether to use chunking (with dask). If False, the returned dataset will
         use xarray's default lazy loading mechanism without chunking. By default
@@ -95,5 +101,37 @@ def open_era5land_grib(
                     step_dim: source_last_step,
                 }
             ] = next_ds[_var]
+    if previous_file is not None:
+        previous_ds: xr.Dataset = xr.open_dataset(
+            previous_file,
+            chunks='auto',
+        ).isel({date_dim: -1, step_dim: -2})
+        source_first_date = era5_ds[date_dim].isel({date_dim: 0}).item()
+        previous_last_date = previous_ds[date_dim].item()
+        if source_first_date != previous_last_date:
+            raise ValueError(
+                f'The first date in the source file ({source_first_date}) does not '
+                f'match the last date in the previous file ({previous_last_date}).'
+            )
+        if not set(era5_ds.variables).issuperset(set(previous_ds.variables)):
+            raise ValueError(
+                'The previous file contains variables that are not present in the '
+                'source file.'
+            )
+        source_penultimate_step = era5_ds[step_dim].isel({step_dim: -2}).item()
+        previous_penultimate_step = previous_ds[step_dim].item()
+        if source_penultimate_step != previous_penultimate_step:
+            raise ValueError(
+                f'The second last intra-date time step in the source file '
+                f'({source_penultimate_step}) does not match the second last intra-date '
+                f'time step in the previous file ({previous_penultimate_step}).'
+            )
+        for _var in era5_ds.data_vars:
+            era5_ds[_var].loc[
+                {
+                    date_dim: source_first_date,
+                    step_dim: source_penultimate_step,
+                }
+            ] = previous_ds[_var]
     return era5_ds
 ###END def open_era5land_grib

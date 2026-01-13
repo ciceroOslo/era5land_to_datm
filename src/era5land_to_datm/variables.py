@@ -32,6 +32,9 @@ era5land_grib_varnames_reverse : dict[str, Era5LandVar]
     downloaded from EAR5-Land data requests to Era5LandVar.
 era5_datm_vars : frozenset[Era5LandVar]
     The set of ERA5-Land variables needed for DATM.
+era5_cumulative_vars : frozenset[Era5LandVar]
+    The set of ERA5-Land variables that are cumulative and need to be
+    differenced during conversion to DATM variables.
 datm7_var_ids : dict[Datm7Var|Datm7Coord, str]
     Variable IDs used in DATM7 netCDF files for each variable (including
     coordinate variables).
@@ -46,6 +49,9 @@ datm7_var_mode : dict[Datm7Var, str]
     possible values are `'time-dependent'` and `'time-invariant'`.
 datm7_var_attrs : dict[Datm7Var|Datm7Coord, dict[str, str]]
     Attributes of each variable used in DATM7 netCDF files.
+datm7_required_era5_vars : dict[Datm7Var, frozenset[Era5LandVar]]
+    Mapping from each DATM7 variable to the set of ERA5-Land variables required
+    to compute it.
 """
 from collections import UserDict
 import enum
@@ -243,6 +249,14 @@ era5_datm_vars: tp.Final[VarSet] = VarSet(
     }
 )
 
+era5_cumulative_vars: tp.Final[VarSet] = VarSet(
+    {
+        Era5LandVar.SSRD,
+        Era5LandVar.STRD,
+        Era5LandVar.TP,
+    }
+)
+
 
 class Datm7Var(enum.StrEnum):
     """Enumeration of DATM7 data variables.
@@ -344,4 +358,45 @@ datm7_var_attrs: dict[Datm7Var|Datm7Coord, dict[Datm7Attr, str]] = {
         ) if _var in _dict
     }
     for _var in tuple(Datm7Var) + tuple(Datm7Coord)
+}
+
+datm7_required_era5_vars: tp.Final[dict[Datm7Var, VarSet]] = {
+    Datm7Var.TBOT: VarSet(
+        {
+            Era5LandVar.T2M,
+        }
+    ),
+    Datm7Var.PSRF: VarSet(
+        {
+            Era5LandVar.SP,
+        }
+    ),
+    Datm7Var.QBOT: VarSet(
+        {
+            Era5LandVar.D2M,
+            Era5LandVar.T2M,
+            Era5LandVar.SP,
+        }
+    ),
+    Datm7Var.WIND: VarSet(
+        {
+            Era5LandVar.U10,
+            Era5LandVar.V10,
+        }
+    ),
+    Datm7Var.FLDS: VarSet(
+        {
+            Era5LandVar.STRD,
+        }
+    ),
+    Datm7Var.FSDS: VarSet(
+        {
+            Era5LandVar.SSRD,
+        }
+    ),
+    Datm7Var.PRECTmms: VarSet(
+        {
+            Era5LandVar.TP,
+        }
+    ),
 }
