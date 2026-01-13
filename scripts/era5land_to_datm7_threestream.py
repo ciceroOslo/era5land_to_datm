@@ -5,6 +5,11 @@ the CRUJRA mode of DATM7. It does not use the more recent ERA5 mode, which did
 not seem to be stable or consistently documented at the time of writing
 (January 2026).
 """
+from collections.abc import (
+    Callable,
+    Mapping,
+    Sequence
+)
 import enum
 from pathlib import Path
 import typing as tp
@@ -13,6 +18,7 @@ from korsbakken_python_utils.containers.dataobject import UniformTypeDataObject
 import numpy as np
 import xarray as xr
 
+from era5land_to_datm.datm_streams import Datm7Stream
 from era5land_to_datm.file_io import open_era5land_grib
 
 
@@ -21,11 +27,16 @@ def main(
         *,
         source_file: Path,
         next_source_file: Path|None = None,
-        output_file: Path,
+        output_streams: Sequence[Datm7Stream | str] = tuple(Datm7Stream),
+        output_files: (
+            Mapping[Datm7Stream, Path]
+            | Callable[[Datm7Stream], Path]
+            | None
+        ) = None,
         eager: bool = True,
 ) -> None:
     """Converts an ERA5 Land GRIB file to a DAMT7 threestream netCDF file.
-    
+
     Parameters
     ----------
     source_file : Path
@@ -37,8 +48,19 @@ def main(
         notably radiation variables, which are cumulative in the ERA5 land data,
         but intensity-based in DATM7. If None, these variables will have missing
         values in the last time step of the output. Optional, by default None.
-    output_file : Path
-        Path to the output netCDF file.
+    output_streams : Sequence[Datm7Stream | str], optional
+        Sequence of Datm7Stream enum values or their string representations,
+        indicating which output streams to generate. Optional, by default all
+        streams.
+    output_files : Mapping[Datm7Stream, Path] | Callable[[Datm7Stream], Path] | None, optional
+        Output files for the requested DATM7 streams. Either as a mapping from
+        Datm7Stream enums to Path objects, or as a callable that takes a
+        Datm7Stream enum as its only argument and returns the Path for that
+        stream. Mappings must contain entries for all requested streams, and
+        callables must return valid Paths for all requested streams. Optional,
+        None by default, in which case output files will be equal to the source
+        file with an underscore and the stream ID appended, before a `.nc`
+        extension.
     eager : bool, optional
         Whether to load the entire dataset into memory before processing. This
         can significantly speed up some operations, while setting it to False
@@ -46,8 +68,45 @@ def main(
         and even reprocesseed multiple times, which can slow down the
         processing. By default True. Set to False if you run into memory issues.
     """
+    source_file = Path(source_file)
+    output_streams = [Datm7Stream(_s) for _s in output_streams]
+    output_files_mapping: dict[Datm7Stream, Path]
+    if output_files is None:
+        output_files_mapping = {
+            _stream: source_file.with_name(
+                source_file.stem + f'_{_stream.value}.nc'
+            )
+            for _stream in output_streams
+        }
+    elif callable(output_files):
+        output_files_mapping = {
+            _stream: output_files(_stream)
+            for _stream in output_streams
+        }
+    else:
+        output_files_mapping = dict(output_files)
+    missing_output_streams = set(output_streams) - set(
+        output_files_mapping.keys()
+    )
+    if missing_output_streams:
+        raise ValueError(
+            'The `output_files` parameter is missing entries for the following '
+            f'requested streams: {missing_output_streams}'
+        )
+
     source_ds: xr.Dataset = open_era5land_grib(
         file=source_file,
         next_file=next_source_file,
         use_chunks=not eager,
     )
+    for _target_stream in output_streams:
+        _target_ds: xr.Dataset = make_datm_ds(
+            source=source_ds,
+            target_stream=_target_stream,
+            eager=eager,
+        )
+        write_datm_nc(
+            _target_ds,
+            stream=_target_stream,
+        )
+###END def main
