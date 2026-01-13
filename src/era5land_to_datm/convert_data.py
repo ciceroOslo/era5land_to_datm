@@ -10,7 +10,16 @@ decumulate_era5land_var
     for the previous time step only. The value of each time step can then be
     averaged with the next time step and divided by 2 times the time step length
     to produce an average rate value.
+
+Attributes
+----------
+conversion_functions : Mapping[Datm7Var, Callable[[xr.Dataset], xr.DataArray]]
+    Mapping of DATM7 variables to functions that convert an ERA5 Land Dataset
+    to the corresponding DATM7 variable DataArray.
 """
+from collections.abc import Callable
+import functools
+
 import xarray as xr
 
 from .datm_streams import (
@@ -97,6 +106,11 @@ def make_datm_ds(
             f'{missing_source_vars}'
         )
 
+    check_era5land_units(
+        source=source,
+        variables=required_era5_vars,
+    )
+
     target_ds: xr.Dataset = make_datm_base(
         source=source,
         target_stream=target_stream,
@@ -161,3 +175,26 @@ def decumulate_era5land_var(
     )
     return decumulated
 ###END def decumulate_era5land_var
+
+
+def make_target_var(
+        target_var: Datm7Var,
+        source: xr.Dataset,
+) -> xr.DataArray:
+    """Creates a target DATM7 variable DataArray from the source ERA5 Land
+    Dataset.
+
+    Parameters
+    ----------
+    target_var : Datm7Var
+        The target DATM7 variable to create.
+    source : xr.Dataset
+        The source ERA5 Land Dataset.
+    """
+    value_arr: xr.DataArray = conversion_functions[target_var](source)
+    return value_arr
+###END def make_target_var
+
+conversion_functions: dict[Datm7Var, Callable[[xr.Dataset], xr.DataArray]] = {
+    Datm7Var.
+}
