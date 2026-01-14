@@ -7,6 +7,8 @@ Era5Dim
 ERA5LandTimeLayout
     Enumeration of possibble time layouts in ERA5 land data (linear, or date
     plus intradate timediff step).
+Datm7Dim
+    String enum for DATM dimension ids.
 """
 import enum
 
@@ -17,6 +19,8 @@ class Era5LandDim(enum.StrEnum):
 
     DATE = 'time'
     STEP = 'step'
+    LAT = 'latitude'
+    LON = 'longitude'
 
 ###END class Era5Dim
 
@@ -30,3 +34,13 @@ class ERA5LandTimeLayout(enum.StrEnum):
     DATE_STEP = 'date_step'
 
 ###END class ERA5LandTimeLayout
+
+
+class Datm7Dim(enum.StrEnum):
+    """String enum for DATM dimension ids."""
+
+    TIME = 'time'
+    LAT = 'lat'
+    LON = 'lon'
+
+###END class Datm7Dim
