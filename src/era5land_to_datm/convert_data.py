@@ -484,3 +484,16 @@ def make_datm_base(
             **other_attrs,
         }
     )
+
+    # Create the 2-dimensions lat/lon variables LATIXY and LONGXY by
+    # broadcasting (should be cvonstant along the other dimension).
+    for _var, _coord in (
+            (Datm7Coord.LATIXY, Datm7Coord.LAT),
+            (Datm7Coord.LONGXY, Datm7Coord.LON),
+    ):
+        target_ds[str(_var)] = target_ds[str(_coord)].broadcast_like(
+            target_ds[[str(Datm7Coord.LAT), str(Datm7Coord.LON)]]
+        )
+
+    return target_ds
+###END def make_datm_base
