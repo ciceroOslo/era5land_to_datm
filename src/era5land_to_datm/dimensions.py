@@ -43,9 +43,6 @@ class ERA5LandTimeLayout(enum.StrEnum):
 ###END class ERA5LandTimeLayout
 
 
-ERA5_LINEARIZED_TIME_DIM: tp.Final[str] = Era5LandDim.DATE.value
-
-
 class Datm7Dim(enum.StrEnum):
     """String enum for DATM dimension ids."""
 
@@ -54,3 +51,9 @@ class Datm7Dim(enum.StrEnum):
     LON = 'lon'
 
 ###END class Datm7Dim
+
+
+LinearizedTimeDimId = tp.NewType('LinearizedTimeDimId', str)
+ERA5_LINEARIZED_TIME_DIM: tp.Final[LinearizedTimeDimId] = LinearizedTimeDimId(
+    Datm7Dim.TIME
+)

@@ -10,6 +10,18 @@ make_target_var
 make_datm_base
     Creates the base DATM xarray Dataset with coordinates, dimensions, and
     Dataset attributes set.
+add_target_var_attrs
+    A utilitity function that adds attributes to a target DATM7 variable after
+    converting/computing the raw values.
+set_target_dims_and_coords
+    A utility function that sets the dimensions and coordinate variables for
+    a target DATM7 variable after converting/computing the raw values (at which
+    point it may still have dimensions and coordinates from the source ERA5
+    Land Dataset).
+comopute_specific_humidity
+    Computes specific humidity from temperature, pressure, and dewpoint
+    temperature DataArrays. This method is used to commpute the DATM7 QBOT
+    variable from ERA5 Land T2M, SP, and D2M variables.
 decumulate_era5land_var
     Differences cumulative ERA5 Land variables along the intra-day step
     dimension, to produce a DataArray where each value gives the cumulated value
@@ -22,6 +34,9 @@ Attributes
 value_conversion_funcs : Mapping[Datm7Var, Callable[[xr.Dataset], xr.DataArray]]
     Mapping of DATM7 variables to functions that convert an ERA5 Land Dataset
     to the corresponding DATM7 variable DataArray.
+era5_to_datm7_dim_map : dict[Era5LandDim, Datm7Dim]
+    Mapping of ERA5 Land dimensions to corresponding DATM7 dimensions, after
+    linearizing the ERA5 Land time dimension with `era5land_to_linear_time`.
 
 Exception Classes
 -----------------
@@ -30,10 +45,13 @@ UnexpectedEra5LandUnitsError
 """
 from collections.abc import (
     Callable,
+    Hashable,
     Iterable,
+    Mapping,
 )
 import datetime
 import functools
+import typing as tp
 
 import xarray as xr
 
@@ -46,6 +64,7 @@ from .dimensions import (
     ERA5_LINEARIZED_TIME_DIM,
     Era5LandDim,
     ERA5LandTimeLayout,
+    LinearizedTimeDimId,
 )
 from .variables import (
     Datm7Attr,
@@ -268,6 +287,101 @@ value_conversion_funcs: dict[Datm7Var, Callable[[xr.Dataset], xr.DataArray]] = {
         (Datm7Var.FLDS, Era5LandVar.STRD),
     )
 }
+
+
+def add_target_var_attrs(
+        arr: xr.DataArray,
+        *,
+        target_var: Datm7Var,
+        source: xr.Dataset,
+) -> xr.DataArray:
+    """A utilitity function that adds attributes to a target DATM7 variable
+    after converting/computing the raw values.
+
+    Parameters
+    ----------
+    arr : xr.DataArray
+        The target DATM7 variable DataArray to add attributes to.
+    target_var : Datm7Var
+        The target DATM7 variable id.
+    source : xr.Dataset
+        The source ERA5 Land Dataset. This parameter is not used in the current
+        implememntation, but is included for possible future use cases where
+        source-specific attributes may need to be added. If you need to use the
+        function without a source Dataset, you can at present pass an empty
+        Dataset.
+
+    Returns
+    -------
+    xarray.DataArray
+        The target DATM7 variable DataArray with attributes added. Note that a
+        new DataArray is returned, the input array is not modified in place,
+        but the underlying data is not copied.
+    """
+    return arr.drop_attrs().assign_attrs(
+        **datm7_var_attrs[target_var],
+    )
+###END def add_target_var_attrs
+
+
+era5_to_datm7_dim_map: dict[Era5LandDim|LinearizedTimeDimId, Datm7Dim] = {
+    Era5LandDim.LAT: Datm7Dim.LAT,
+    Era5LandDim.LON: Datm7Dim.LON,
+    ERA5_LINEARIZED_TIME_DIM: Datm7Dim.TIME,
+}
+
+
+def set_target_dims_and_coords(
+        arr: xr.DataArray,
+        *,
+        target_var: Datm7Var,
+        source: xr.Dataset,
+        dim_map: Mapping[Era5LandDim|LinearizedTimeDimId, Datm7Dim] \
+            = era5_to_datm7_dim_map,
+) -> xr.DataArray:
+    """Set the dimensions and coordinate variables for a target DATM7 variable
+    after converting/computing the raw values.
+
+    The function drops all existing coordinates other than the index (dimension)
+    coordinates, and renames the dimensions and index coordinates to the names
+    used in DATM7.
+
+    Note that the function assumes that the source Dataset has already been
+    converted to linear time using `era5land_to_linear_time`.
+
+    Parameters
+    ----------
+    arr : xr.DataArray
+        The target DATM7 variable DataArray to set dimensions and coordinates
+        for.
+    target_var : Datm7Var
+        The target DATM7 variable id.
+    source : xr.Dataset
+        The source ERA5 Land Dataset. This parameter is not used in the current
+        implememntation, but is included for possible future use cases where
+        source-specific attributes may need to be added. If you need to use the
+        function without a source Dataset, you can at present pass an empty
+        Dataset.
+    dim_map : Mapping[Era5LandDim|LinearizedTimeDimId, Datm7Dim], optional
+        Mapping of ERA5 Land dimensions (or linearized time dimension) to
+        corresponding DATM7 dimensions. By default the module-level
+        `era5_to_datm7_dim_map` dictionary. Note that the time dimension must
+        have been linearized already, so that a single time dimension in `arr`
+        source maps to the DATM7 time dimension.
+
+    Returns
+    -------
+    xarray.DataArray
+        A new xarray.DataArray with the same values as `arr`, but with
+        dimensions and coordinates appropriate for the target DATM7 variable.
+    """
+    rename_mapping: dict[Hashable, Hashable] = {
+        str(_source_dim): str(_target_dim)
+        for _source_dim, _target_dim in dim_map.items()
+        if _source_dim in arr.dims
+    }
+    return arr.reset_coords(drop=True).rename(rename_mapping)
+###END def set_target_dims_and_coords
 
 
 class UnexpectedEra5LandUnitsError(Exception):
