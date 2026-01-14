@@ -4,6 +4,12 @@ Functions
 ---------
 make_datm_ds
     Creates a DATM xarray Dataset from an opened ERA5 Land xarray Dataset.
+make_target_var
+    Creates a target DATM7 variable DataArray from the source ERA5 Land
+    Dataset.
+make_datm_base
+    Creates the base DATM xarray Dataset with coordinates, dimensions, and
+    Dataset attributes set.
 decumulate_era5land_var
     Differences cumulative ERA5 Land variables along the intra-day step
     dimension, to produce a DataArray where each value gives the cumulated value
@@ -13,7 +19,7 @@ decumulate_era5land_var
 
 Attributes
 ----------
-conversion_functions : Mapping[Datm7Var, Callable[[xr.Dataset], xr.DataArray]]
+value_conversion_funcs : Mapping[Datm7Var, Callable[[xr.Dataset], xr.DataArray]]
     Mapping of DATM7 variables to functions that convert an ERA5 Land Dataset
     to the corresponding DATM7 variable DataArray.
 
@@ -26,6 +32,7 @@ from collections.abc import (
     Callable,
     Iterable,
 )
+import datetime
 import functools
 
 import xarray as xr
@@ -35,6 +42,8 @@ from .datm_streams import (
     datm7_stream_variables,
 )
 from .dimensions import (
+    Datm7Dim,
+    ERA5_LINEARIZED_TIME_DIM,
     Era5LandDim,
     ERA5LandTimeLayout,
 )
@@ -45,6 +54,7 @@ from .variables import (
     Era5LandCoord,
     Era5LandVar,
     datm7_required_era5_vars,
+    datm7_var_attrs,
     era5_datm_vars,
     era5land_grib_varnames,
     era5land_grib_varnames_reverse,
@@ -381,3 +391,96 @@ def check_era5land_units(
         )
     return unexpected_vars
 ###END def check_era5land_units
+
+
+_case_title_target_stream_defaults: dict[Datm7Stream, str] = {
+    Datm7Stream.PREC: 'Precipitation',
+    Datm7Stream.SOLR: 'Downward Shortwave Radiation',
+    Datm7Stream.TPQWL: 'Temperature, Pressure, Winds, Humidity, and Downward ' \
+        'Longwave Radiation',
+}
+
+def make_datm_base(
+        *,
+        source: xr.Dataset,
+        target_stream: Datm7Stream,
+        creation_date: str | datetime.date | None = None,
+        case_title: str | None = None,
+        other_attrs: dict[str, str] | None = None,
+) -> xr.Dataset:
+    """Creates the base DATM xarray Dataset with coordinates, dimensions, and
+    Dataset attributes set.
+
+    Parameters
+    ----------
+    source : xr.Dataset
+        The source ERA5 Land Dataset.
+    target_stream : Datm7Stream
+        The target DATM7 stream to create.
+    creation_date : str | datetime.date | None, optional
+        The creation date to set in the DATM Dataset attributes. If a string,
+        it should be in the format 'YYYY-MM-DD'. If a `datetime.date` object is
+        given, it will be converted to a string in the same format. If None,
+        the current date will be used. By default None.
+    case_title : str | None, optional
+        The case title to set in the DATM Dataset attributes. If None, an
+        appropriate default will be generated based on the target stream.
+        By default None.
+    other_attrs : dict[str, str] | None, optional
+        Additional Dataset attributes to set in the DATM Dataset. By default
+        None.
+
+    Returns
+    -------
+    xr.Dataset
+    """
+    target_stream = Datm7Stream(target_stream)
+
+    creation_date_obj: datetime.date
+    if creation_date is None:
+        creation_date_obj = datetime.date.today()
+    if isinstance(creation_date, str):
+        creation_date_obj = datetime.date.fromisoformat(creation_date)
+    elif isinstance(creation_date, datetime.date):
+        creation_date_obj = creation_date
+    else:
+        raise TypeError(
+            'creation_date must be a str in format "YYYY-MM-DD", a '
+            'datetime.date object, or None.'
+        )
+
+    if case_title is None:
+        case_title = (
+            'ERA5 Land 1-Hourly Atmospheric Forcing: '
+            f'{_case_title_target_stream_defaults[target_stream]}.'
+        )
+
+    if other_attrs is None:
+        other_attrs = {}
+
+    target_ds = xr.Dataset(
+        coords={
+            str(Datm7Coord.LAT): xr.DataArray(
+                data=source[Era5LandDim.LAT].data,
+                dims=(Datm7Dim.LAT.value,),
+                attrs=datm7_var_attrs[Datm7Coord.LAT],
+            ),
+            str(Datm7Coord.LON): xr.DataArray(
+                data=source[Era5LandDim.LON].data,
+                dims=(Datm7Dim.LON.value,),
+                attrs=datm7_var_attrs[Datm7Coord.LON],
+            ),
+            # TODO: **NB!** THE ERA5 TIME COORDINATES MUST BE CONVERTED TO `cftime.DatetimeNoLeap`!
+            str(Datm7Coord.TIME): xr.DataArray(
+                data=source[ERA5_LINEARIZED_TIME_DIM].data,
+                dims=(Datm7Dim.TIME.value,),
+                attrs=datm7_var_attrs[Datm7Coord.TIME],
+            ),
+        },
+        attrs={
+            'case_title': case_title,
+            'conventions': '',
+            'creation_date': creation_date_obj.isoformat(),
+            **other_attrs,
+        }
+    )

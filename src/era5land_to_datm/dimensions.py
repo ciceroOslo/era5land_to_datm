@@ -9,8 +9,15 @@ ERA5LandTimeLayout
     plus intradate timediff step).
 Datm7Dim
     String enum for DATM dimension ids.
+
+Attributes
+----------
+ERA5_LINEARIZED_TIME_DIM: Final[str]
+    The name to use for the time dimension in ERA5 Land Dataset instances after
+    linearizing.
 """
 import enum
+import typing as tp
 
 
 
@@ -34,6 +41,9 @@ class ERA5LandTimeLayout(enum.StrEnum):
     DATE_STEP = 'date_step'
 
 ###END class ERA5LandTimeLayout
+
+
+ERA5_LINEARIZED_TIME_DIM: tp.Final[str] = Era5LandDim.DATE.value
 
 
 class Datm7Dim(enum.StrEnum):
