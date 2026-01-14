@@ -14,6 +14,9 @@ era5land_to_linear_time
     Converts an ERA5 Land Dataset with a two-dimensional date+intradate step
     time layout to a Dataset with a linearized one-dimensional time layout. No
     other changes are made to variable values, coordinates or attributes.
+postprocess_converted_datm_ds
+    Postprocesses a converted DATM xarray Dataset after all variables have been
+    created, to perform any final adjustments needed.
 add_target_var_attrs
     A utilitity function that adds attributes to a target DATM7 variable after
     converting/computing the raw values.
@@ -300,6 +303,45 @@ def era5land_to_linear_time(
     )
     return output_ds
 ###END def era5land_to_linear_time
+
+
+def postprocess_converted_datm_ds(
+        target_ds: xr.Dataset,
+        *,
+        target_stream: Datm7Stream,
+        source: xr.Dataset,
+        eager: bool = True,
+) -> xr.Dataset:
+    """Postprocesses a converted DATM xarray Dataset after all variables have been
+    created, to perform any final adjustments needed.
+
+    Parameters
+    ----------
+    target_ds : xr.Dataset
+        The converted DATM xarray Dataset.
+    target_stream : Datm7Stream
+        The target DATM7 stream.
+    source : xr.Dataset
+        The source ERA5 Land Dataset.
+    eager: bool, optional
+        Whether to load the entire dataset into memory before processing. This
+        can significantly speed up some operations, while setting it to False
+        may lead require less memory usage but lead to some data being reloaded
+        and even reprocesseed multiple times, which can slow down the
+        processing. By default True. Set to False if you run into memory issues.
+
+    Returns
+    -------
+    xr.Dataset
+        The postprocessed DATM xarray Dataset. At the moment, not postprocessing
+        is required, so the input Dataset is returned unchanged. Note that this
+        is the same Dataset object as the input, no copy is made. If any
+        non-trivial postprocessing is added in the future, the return value may
+        be a new Dataset instance.
+    """
+    # Currently, no postprocessing is needed.
+    return target_ds
+###END def postprocess_converted_datm_ds
 
 
 def make_target_var(
