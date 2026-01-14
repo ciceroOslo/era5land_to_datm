@@ -119,17 +119,26 @@ def make_datm_ds(
     cumulative_required_vars: frozenset[Era5LandVar] = (
         required_era5_vars & era5_cumulative_vars
     )
-    decumulated_source: xr.Dataset = source.copy(deep=False)
+    source_decumulated: xr.Dataset = source.copy(deep=False)
     for _cum_var in cumulative_required_vars:
         _cum_varname = era5land_grib_varnames[_cum_var]
-        decumulated_source[_cum_varname] = decumulate_era5land_var(
+        source_decumulated[_cum_varname] = decumulate_era5land_var(
             source[_cum_varname],
         )
+
+    if time_layout == ERA5LandTimeLayout.DATE_STEP:
+        source_1d_time: xr.Dataset = era5land_to_linear_time(
+            source=source_decumulated,
+        )
+    else:
+        source_1d_time: xr.Dataset = source_decumulated
+    del source_decumulated
     for _target_var in target_vars:
         target_ds[_target_var.value] = make_target_var(
             target_var=_target_var,
-            source=decumulated_source,
+            source=source_1d_time,
         )
+    del source_1d_time
     target_ds = postprocess_converted_datm_ds(
         target_ds=target_ds,
         target_stream=target_stream,
