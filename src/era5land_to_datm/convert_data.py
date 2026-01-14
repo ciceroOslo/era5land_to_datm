@@ -217,11 +217,25 @@ def make_target_var(
 value_conversion_funcs: dict[Datm7Var, Callable[[xr.Dataset], xr.DataArray]] = {
     Datm7Var.TBOT: lambda source: \
         source[era5land_grib_varnames[Era5LandVar.T2M]],
-    Datm7Var .PSRF: lambda source: \
+    Datm7Var.PSRF: lambda source: \
         source[era5land_grib_varnames[Era5LandVar.SP]],
+    Datm7Var.QBOT: lambda source: \
+        compute_specific_humidity(
+            temperature=source[era5land_grib_varnames[Era5LandVar.T2M]],
+            pressure=source[era5land_grib_varnames[Era5LandVar.SP]],
+            dewpoint=source[era5land_grib_varnames[Era5LandVar.D2M]],
+        ),
     Datm7Var.WIND: lambda source: \
         xr.ufuncs.sqrt(
             source[era5land_grib_varnames[Era5LandVar.U10]]**2 +
             source[era5land_grib_varnames[Era5LandVar.V10]]**2
         ),
+} | {
+    _target_var: lambda source: compute_average_rate(
+        source[era5land_grib_varnames[_source_var]],
+    ) for _target_var, _source_var in (
+        (Datm7Var.FSDS, Era5LandVar.SSRD),
+        (Datm7Var.PRECTmms, Era5LandVar.TP),
+        (Datm7Var.FLDS, Era5LandVar.STRD),
+    )
 }
