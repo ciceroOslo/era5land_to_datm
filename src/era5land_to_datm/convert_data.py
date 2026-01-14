@@ -25,6 +25,12 @@ set_target_dims_and_coords
     a target DATM7 variable after converting/computing the raw values (at which
     point it may still have dimensions and coordinates from the source ERA5
     Land Dataset).
+compute_average_rate
+    Computes average rate values from decumulated ERA5 Land variable values. The
+    function assumes that the value at each point is the cumulated value for the
+    previous time step only. The average rate is therefore computed by taking
+    the average of the value at each point and the value at the next point along
+    the time dimension, and dividing by 2 times the time step length.
 comopute_specific_humidity
     Computes specific humidity from temperature, pressure, and dewpoint
     temperature DataArrays. This method is used to commpute the DATM7 QBOT
@@ -299,6 +305,7 @@ def era5land_to_linear_time(
         .set_index(
             {temp_time_dim_name: temp_time_coord_name}
         )
+        .drop_vars([source_date_dim, source_step_dim])
         .rename({temp_time_dim_name: str(output_time_dim)})
     )
     return output_ds
