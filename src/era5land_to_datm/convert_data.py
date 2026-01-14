@@ -388,6 +388,62 @@ def make_target_var(
     return value_arr
 ###END def make_target_var
 
+
+def compute_average_rate(
+        source: xr.DataArray,
+        *,
+        time_step_dim: str = ERA5_LINEARIZED_TIME_DIM,
+        time_step_seconds: float|int|xr.DataArray|None = None,
+) -> xr.DataArray:
+    """Computes average rate values from decumulated ERA5 Land variable values.
+
+    The function assumes that the value at each point is the cumulated value for
+    the previous time step only. The average rate is therefore computed by
+    taking the average of the value at each point and the value at the next
+    point along the time dimension, and dividing by 2 times the time step
+    length.
+
+    Parameters
+    ----------
+    source : xr.DataArray
+        The source ERA5 Land variable DataArray.
+    time_step_dim : str, optional
+        The name of the time step dimension. By default given by the
+        module-level attribute `ERA5_LINEARIZED_TIME_DIM`. If
+        `time_step_seconds` is not specified, the dimnension must have an
+        index (coordinate variable), and it must be of dtype `numpy.datetime64`.
+    time_step_seconds : float|int|xr.DataArray|None, optional
+        The time step length(s) in seconds. If None, the time step length will
+        be inferred from the time coordinate values along the time step
+        dimension. By default None.
+
+    Returns
+    -------
+    xr.DataArray
+        The average rate DataArray. The values will have the same units as
+        `source` in the numerator, divided by seconds in the denominator. You
+        will need to convert manually if you want other units than per second.
+    """
+    if time_step_seconds is None:
+        time_coords: xr.DataArray = source[time_step_dim]
+        time_step_seconds = time_coords.diff(
+            dim=time_step_dim,
+            label='upper',
+        ).dt.total_seconds()
+    shifted_source: xr.DataArray = source.shift({time_step_dim: -1})
+    if isinstance(time_step_seconds, xr.DataArray):
+        shifted_time_step_seconds: xr.DataArray|float|int = (
+            time_step_seconds
+            .shift({time_step_dim: -1})
+        )
+    else:
+        shifted_time_step_seconds = time_step_seconds
+    return (
+        (source + shifted_source)
+        / (time_step_seconds + shifted_time_step_seconds)
+    )
+###END def compute_average_rate
+
 value_conversion_funcs: dict[Datm7Var, Callable[[xr.Dataset], xr.DataArray]] = {
     Datm7Var.TBOT: lambda source: \
         source[era5land_grib_varnames[Era5LandVar.T2M]],
@@ -407,11 +463,11 @@ value_conversion_funcs: dict[Datm7Var, Callable[[xr.Dataset], xr.DataArray]] = {
 } | {
     _target_var: lambda source: compute_average_rate(
         source[era5land_grib_varnames[_source_var]],
-    ) for _target_var, _source_var in (
+    ) * 1000.0 for _target_var, _source_var in (
         (Datm7Var.FSDS, Era5LandVar.SSRD),
         (Datm7Var.PRECTmms, Era5LandVar.TP),
         (Datm7Var.FLDS, Era5LandVar.STRD),
-    )
+    )  # Multiply by 1000, to convert from cumulateive m to mm/sec rate.
 }
 
 
