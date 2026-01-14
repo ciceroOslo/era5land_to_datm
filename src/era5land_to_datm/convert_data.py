@@ -184,6 +184,15 @@ def make_target_var(
     """Creates a target DATM7 variable DataArray from the source ERA5 Land
     Dataset.
 
+    **NB!** This function normally assumes that cumulative ERA5 Land variables
+    for radiation and precipitation have already been decumulated using
+    `decumulate_era5land_var`. It uses the functions in the module-level
+    dictionary `value_conversion_funcs` to perform the conversion, and the
+    functions for radiation and precipitation variables in that dictionary
+    assume that cumulative variables have been decumulated by a simple diff,
+    meaning that the value at each time step gives the cumulated value for the
+    previous time step only.
+
     Parameters
     ----------
     target_var : Datm7Var
@@ -191,10 +200,28 @@ def make_target_var(
     source : xr.Dataset
         The source ERA5 Land Dataset.
     """
-    value_arr: xr.DataArray = conversion_functions[target_var](source)
+    value_arr: xr.DataArray = value_conversion_funcs[target_var](source)
+    add_target_var_attrs(
+        arr=value_arr,
+        target_var=target_var,
+        source=source,
+    )
+    set_target_dims_and_coords(
+        arr=value_arr,
+        target_var=target_var,
+        source=source,
+    )
     return value_arr
 ###END def make_target_var
 
-conversion_functions: dict[Datm7Var, Callable[[xr.Dataset], xr.DataArray]] = {
-    Datm7Var.
+value_conversion_funcs: dict[Datm7Var, Callable[[xr.Dataset], xr.DataArray]] = {
+    Datm7Var.TBOT: lambda source: \
+        source[era5land_grib_varnames[Era5LandVar.T2M]],
+    Datm7Var .PSRF: lambda source: \
+        source[era5land_grib_varnames[Era5LandVar.SP]],
+    Datm7Var.WIND: lambda source: \
+        xr.ufuncs.sqrt(
+            source[era5land_grib_varnames[Era5LandVar.U10]]**2 +
+            source[era5land_grib_varnames[Era5LandVar.V10]]**2
+        ),
 }
