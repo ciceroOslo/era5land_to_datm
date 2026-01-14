@@ -4,6 +4,8 @@ Enums
 -----
 Era5LandVar
     Enumeration of ERA5-Land variables available for download.
+Era5LandCoord
+    Enumeration of ERA5-Land coordinate variables.
 Datm7Var
     Enumeration of DATM7 variables.
 Datm7Coord
@@ -35,6 +37,9 @@ era5_datm_vars : frozenset[Era5LandVar]
 era5_cumulative_vars : frozenset[Era5LandVar]
     The set of ERA5-Land variables that are cumulative and need to be
     differenced during conversion to DATM variables.
+era5_var_units : Era5LandVarMapping[str]
+    Mapping from Era5LandVar to the expected values of the `units` attribute in
+    the ERA5-Land datasets.
 datm7_var_ids : dict[Datm7Var|Datm7Coord, str]
     Variable IDs used in DATM7 netCDF files for each variable (including
     coordinate variables).
@@ -108,6 +113,19 @@ class Era5LandVar(enum.StrEnum):
     ###END def Era5LandVar._missing_
 
 ###END class Era5LandVar
+
+
+class Era5LandCoord(enum.StrEnum):
+    """Enumeration of ERA5-Land coordinate variables."""
+
+    LAT = 'latitude'
+    LON = 'longitude'
+    DATE = 'time'
+    STEP = 'step'
+    TIME_LINEAR = 'valid_time'
+
+###END class Era5LandCoord
+
 
 class VarSet(frozenset[Era5LandVar]):
     """A frozenset of Era5LandVar instances representing a set of variables.
@@ -256,6 +274,20 @@ era5_cumulative_vars: tp.Final[VarSet] = VarSet(
         Era5LandVar.TP,
     }
 )
+
+era5_var_units: dict[Era5LandVar|Era5LandCoord, str] = {
+    Era5LandCoord.LAT: 'degrees_north',
+    Era5LandCoord.LON: 'degrees_east',
+    Era5LandCoord.TIME_LINEAR: 'None',
+    Era5LandVar.U10: 'm s**-1',
+    Era5LandVar.V10: 'm s**-1',
+    Era5LandVar.D2M: 'K',
+    Era5LandVar.T2M: 'K',
+    Era5LandVar.SP: 'Pa',
+    Era5LandVar.SSRD: 'J m**-2',
+    Era5LandVar.STRD: 'J m**-2',
+    Era5LandVar.TP: 'm',
+}
 
 
 class Datm7Var(enum.StrEnum):

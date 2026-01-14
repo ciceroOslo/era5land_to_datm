@@ -16,8 +16,16 @@ Attributes
 conversion_functions : Mapping[Datm7Var, Callable[[xr.Dataset], xr.DataArray]]
     Mapping of DATM7 variables to functions that convert an ERA5 Land Dataset
     to the corresponding DATM7 variable DataArray.
+
+Exception Classes
+-----------------
+UnexpectedEra5LandUnitsError
+    Raised when one or more ERA5 Land variable has unexpected units.
 """
-from collections.abc import Callable
+from collections.abc import (
+    Callable,
+    Iterable,
+)
 import functools
 
 import xarray as xr
@@ -34,12 +42,14 @@ from .variables import (
     Datm7Attr,
     Datm7Coord,
     Datm7Var,
+    Era5LandCoord,
     Era5LandVar,
     datm7_required_era5_vars,
     era5_datm_vars,
     era5land_grib_varnames,
     era5land_grib_varnames_reverse,
     era5_cumulative_vars,
+    era5_var_units,
 )
 
 
@@ -248,3 +258,126 @@ value_conversion_funcs: dict[Datm7Var, Callable[[xr.Dataset], xr.DataArray]] = {
         (Datm7Var.FLDS, Era5LandVar.STRD),
     )
 }
+
+
+class UnexpectedEra5LandUnitsError(Exception):
+    """Raised when one or more ERA5 Land variable has unexpected units.
+
+    Attributes
+    ----------
+    unexpected_vars : dict[Era5LandVar|Era5LandCoord, str]
+        The ERA5 Land variables and coordinates that had unexpected units,
+        mapped to the unepected units found.
+    expected_units : dict[Era5LandVar|Era5LandCoord, str]
+        Mapping from the same ERA5 Land variables as in `unexpected_vars`, to
+        the expected units.
+
+    Methods
+    -------
+    default_error_msg() -> str
+        Creates a default error message listing the variables with unexpected
+        units, the units found, and the expected units.
+    """
+    
+    def __init__(
+            self,
+            *args,
+            unexpected_vars: dict[Era5LandVar|Era5LandCoord, str],
+            expected_units: dict[Era5LandVar|Era5LandCoord, str|None]|None = None,
+            **kwargs,
+    ) -> None:
+        """
+        Parameters
+        ----------
+        *args
+            Positional arguments to pass to the base Exception class, which
+            can include a custom error message as its first positional argument.
+            If no positional arguments are given, a default error message will
+            be created using the `default_error_msg` method.
+        unexpected_vars : dict[Era5LandVar|Era5LandCoord, str]
+            The ERA5 Land variables and coordinates that had unexpected units,
+            mapped to the unepected units found.
+        expected_units : dict[Era5LandVar|Era5LandCoord, str|None]|None, optional
+            Mapping from the same ERA5 Land variables as in `unexpected_vars`,
+            to the expected units. If None, the expected units will be looked up
+            from the module-level `era5_var_units` dictionary. By default None.
+        """
+        self.unexpected_vars: dict[Era5LandVar|Era5LandCoord, str] \
+            = unexpected_vars
+        self.expected_units: dict[Era5LandVar|Era5LandCoord, str|None] \
+            = expected_units if expected_units is not None else {
+                _var: era5_var_units.get(_var, None)
+                for _var in unexpected_vars.keys()
+            }
+        if len(args) == 0:
+            args = (self.default_error_msg(),)
+        super().__init__(*args, **kwargs)
+    ###END def UnexpectedEra5LandUnitsError.__init__
+
+    def default_error_msg(self) -> str:
+        """Creates a default error message listing the variables with unexpected
+        units, the units found, and the expected units.
+        """
+        msg_lines = [
+            'The following ERA5 Land variables have unexpected units:'
+        ]
+        for _var, _found_units in self.unexpected_vars.items():
+            _expected_units = self.expected_units[_var]
+            msg_lines.append(
+                f' - {_var.value}: found "{_found_units}", expected '
+                f'"{_expected_units}"'
+            )
+        return '\n'.join(msg_lines)
+    ###END def UnexpectedEra5LandUnitsError.default_error_msg
+
+###END class UnexpectedEra5LandUnitsError
+
+
+def check_era5land_units(
+        source: xr.Dataset,
+        *,
+        variables: Iterable[Era5LandVar|Era5LandCoord],
+        expected_units: dict[Era5LandVar|Era5LandCoord, str|None] | None \
+            = None,
+        raise_error: bool = True,
+) -> dict[Era5LandVar|Era5LandCoord, str]:
+    """Checks that the specified ERA5 Land variables and coordinates in the
+    source Dataset have the expected units.
+
+    Parameters
+    ----------
+    source : xr.Dataset
+        The source ERA5 Land Dataset.
+    variables : Iterable[Era5LandVar|Era5LandCoord]
+        The ERA5 Land variables and coordinates to check.
+    expected_units : dict[Era5LandVar|Era5LandCoord, str], optional
+        Mapping from ERA5 Land variables and coordinates to their expected
+        units. By default the module-level `era5_var_units` dictionary.
+    raise_error : bool, optional
+        Whether to raise an UnexpectedEra5LandUnitsError if any variables have
+        unexpected units. If False, the function will simply return a mapping
+        of the variables with unexpected units to the units found. By default
+        True.
+    """
+    unexpected_vars: dict[Era5LandVar|Era5LandCoord, str] = {}
+    if expected_units is None:
+        expected_units = {
+            _var: era5_var_units.get(_var, None)
+            for _var in variables
+        }
+    for _var in variables:
+        _varname = (
+            era5land_grib_varnames[_var]
+            if isinstance(_var, Era5LandVar) else _var.value
+        )
+        _found_units: str = source[_varname].attrs.get('units', '')
+        _expected_units = expected_units.get(_var, '')
+        if _found_units != _expected_units:
+            unexpected_vars[_var] = _found_units
+    if unexpected_vars and raise_error:
+        raise UnexpectedEra5LandUnitsError(
+            unexpected_vars=unexpected_vars,
+            expected_units=expected_units,
+        )
+    return unexpected_vars
+###END def check_era5land_units
