@@ -10,6 +10,10 @@ make_target_var
 make_datm_base
     Creates the base DATM xarray Dataset with coordinates, dimensions, and
     Dataset attributes set.
+era5land_to_linear_time
+    Converts an ERA5 Land Dataset with a two-dimensional date+intradate step
+    time layout to a Dataset with a linearized one-dimensional time layout. No
+    other changes are made to variable values, coordinates or attributes.
 add_target_var_attrs
     A utilitity function that adds attributes to a target DATM7 variable after
     converting/computing the raw values.
@@ -223,6 +227,79 @@ def decumulate_era5land_var(
     )
     return decumulated
 ###END def decumulate_era5land_var
+
+
+def era5land_to_linear_time(
+        source: xr.Dataset,
+        *,
+        source_date_dim: str = Era5LandDim.DATE,
+        source_step_dim: str = Era5LandDim.STEP,
+        output_time_dim: LinearizedTimeDimId = ERA5_LINEARIZED_TIME_DIM,
+        source_time_coord: str|None = Era5LandCoord.TIME_LINEAR,
+) -> xr.Dataset:
+    """Converts an ERA5 Land Dataset with a two-dimensional date+intradate step
+    time layout to a Dataset with a linearized one-dimensional time layout. No
+    other changes are made to variable values, coordinates or attributes.
+
+    Parameters
+    ----------
+    source : xr.Dataset
+        The source ERA5 Land Dataset with a two-dimensional date+intradate step
+        time layout.
+    source_date_dim : str, optional
+        The name of the date dimension in the source Dataset. By default
+        `Era5LandDim.DATE`.
+    source_step_dim : str, optional
+        The name of the intradate step dimension in the source Dataset. By
+        default `Era5LandDim.STEP`.
+    output_time_dim : LinearizedTimeDimId, optional
+        The name to use for the linearized time dimension in the output Dataset.
+        By default `ERA5_LINEARIZED_TIME_DIM`.
+    source_time_coord : str|None, optional
+        Name of a variable in the `source` that holds full time coordinate
+        values for each point (assumed to be of dtype `numpy.datetime64`). This
+        is typically the variable `valid_time` in ERA5 Land GRIB files (given
+        by the enum `Era5LandCoord.TIME_LINEAR`). The variable must be
+        two-dimensional, with dimensions equal to `source_date_dim` and
+        `source_step_dim`. If None, the time coordinate variable will be
+        computed from the indexes of the date and step dimensions, which will
+        require extra computation. By default `Era5LandCoord.TIME_LINEAR`.
+
+    Returns
+    -------
+    xr.Dataset
+        A new xarray Dataset with the same variables as `source`, but with a
+        linearized one-dimensional time dimension instead of the two-dimensional
+        date+intradate step layout.
+    """
+    # We need a temporary time dimension name, since the desired dimension
+    # name may collide with one of the source dimensions.
+    temp_time_dim_name: str = f'{source_date_dim}_{source_step_dim}_stacked'
+    if source_time_coord is None:
+        temp_time_coord_name: str \
+            = f'{source_date_dim}_{source_step_dim}_time_coord'
+        source = source.assign_coords(
+            {
+                temp_time_coord_name: (
+                    source[source_date_dim] + source[source_step_dim]
+                )
+            }
+        )
+    else:
+        temp_time_coord_name = source_time_coord
+    output_ds: xr.Dataset = (
+        source
+        .reset_index((source_date_dim, source_step_dim), drop=True)
+        .stack(
+            {temp_time_dim_name: (source_date_dim, source_step_dim)}
+        )
+        .set_index(
+            {temp_time_dim_name: temp_time_coord_name}
+        )
+        .rename({temp_time_dim_name: str(output_time_dim)})
+    )
+    return output_ds
+###END def era5land_to_linear_time
 
 
 def make_target_var(
