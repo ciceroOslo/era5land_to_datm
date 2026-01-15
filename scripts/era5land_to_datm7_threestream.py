@@ -168,11 +168,13 @@ if __name__ == '__main__':
         ),
     )
     parser.add_argument(
-        '--eager',
+        '--lazy',
         action='store_true',
         help=(
-            'Load the entire dataset into memory before processing. Can speed '
-            'up processing, but requires more memory. Enabled by default.'
+            'Lazy-load data with dask to reduce memory usage. May slow down '
+            'the processing considerably due to some dating being read '
+            'multiple times, and some processing steps having poor '
+            'dask support.'
         ),
     )
     args = parser.parse_args()
@@ -181,5 +183,5 @@ if __name__ == '__main__':
         next_source_file=args.next_source_file,
         previous_source_file=args.previous_source_file,
         output_streams=args.output_streams,
-        eager=args.eager,
+        eager=not args.lazy,
     )
