@@ -5,12 +5,16 @@ Functions
 open_era5land_grib
     Opens an ERA5 Land GRIB file, optionally with the next file to obtain values
     in the last time step when these are NaN. Returns data as an xarray Dataset.
+write_datm_nc
+    Writes a DATM netCDF file for a given stream from a given xarray Dataset.
 """
 from pathlib import Path
 
 import xarray as xr
 
 from era5land_to_datm.dimensions import Era5LandDim
+
+from era5land_to_datm.datm_streams import Datm7Stream
 
 
 
@@ -135,3 +139,53 @@ def open_era5land_grib(
             ] = previous_ds[_var]
     return era5_ds
 ###END def open_era5land_grib
+
+
+def write_datm_nc(
+        ds: xr.Dataset,
+        *,
+        output_file: Path,
+        stream: Datm7Stream,
+        clobber: bool = False,
+) -> Path:
+    """Writes a DATM netCDF file for a given stream from a given xarray Dataset.
+
+    Parameters
+    ----------
+    ds : xr.Dataset
+        The xarray Dataset containing the data to write.
+    output_file : Path
+        The path to the output netCDF file.
+    stream : Datm7Stream
+        The DATM7 stream enum indicating which stream is being written. In the
+        current implementation, this parameter is not used, but may be in the
+        future. It should therefore be set to proper value, and is mandatory,
+        even though it currently has no effect. If necessary, an empty string
+        or a dummy value can be used, but this may not be future-proof.
+    clobber : bool, optional
+        Whether to overwrite an existing file at the output path. By default
+        False, in which case a FileExistsError will be raised if the output file
+        already exists.
+
+    Returns
+    -------
+    Path
+        The path to the written netCDF file.
+    """
+    # encoding: dict[str, dict[str, object]] = {}
+    # for var in ds.data_vars:
+    #     encoding[var] = {'zlib': True, 'complevel': 4}
+    output_file = Path(output_file)
+    if output_file.exists() and not clobber:
+        raise FileExistsError(
+            f'The output file {output_file} already exists. Set the parameter '
+            '`clobber=True` if you want to overwrite it.'
+        )
+    ds.to_netcdf(
+        path=output_file,
+        mode='w',
+        format='NETCDF4',
+        # encoding=encoding,
+    )
+    return output_file
+###END def write_datm_nc
