@@ -37,6 +37,7 @@ cfgrib = ">=0.9.15.1"
 python = ">=3.13.9"
 pydantic = ">=2.12.5"
 netcdf4 = ">=1.7.3"
+metpy = ">=1.7.1,<2"
 
 [tool.pixi.feature.dev.dependencies]
 ipykernel = "*"

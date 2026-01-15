@@ -79,6 +79,9 @@ from .dimensions import (
     ERA5LandTimeLayout,
     LinearizedTimeDimId,
 )
+from .meteorology import (
+    specific_humidity_from_dewpoint_pressure,
+)
 from .variables import (
     Datm7Attr,
     Datm7Coord,
@@ -450,8 +453,7 @@ value_conversion_funcs: dict[Datm7Var, Callable[[xr.Dataset], xr.DataArray]] = {
     Datm7Var.PSRF: lambda source: \
         source[era5land_grib_varnames[Era5LandVar.SP]],
     Datm7Var.QBOT: lambda source: \
-        compute_specific_humidity(
-            temperature=source[era5land_grib_varnames[Era5LandVar.T2M]],
+        specific_humidity_from_dewpoint_pressure(
             pressure=source[era5land_grib_varnames[Era5LandVar.SP]],
             dewpoint=source[era5land_grib_varnames[Era5LandVar.D2M]],
         ),
