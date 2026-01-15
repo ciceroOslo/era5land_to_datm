@@ -216,6 +216,11 @@ def decumulate_era5land_var(
     averaged with the next time step and divided by 2 times the time step length
     to produce an average rate value.
 
+    NB! The diff method that is applied in this function apperas to fail with
+    lazy-loaded DataArrays based on grib files whose data has not been loaded
+    yet. The data will in `source` will therefore be loaded and persisted after
+    calling this function.
+
     Parameters
     ----------
     source : xr.DataArray
@@ -228,6 +233,7 @@ def decumulate_era5land_var(
         raise ValueError(
             f'The source DataArray must have a step dimension {step_dim}.'
         )
+    source = source.load()
     decumulated: xr.DataArray = xr.concat(
         [
             source.isel({step_dim: 0}),
