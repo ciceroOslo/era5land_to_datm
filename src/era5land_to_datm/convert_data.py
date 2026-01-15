@@ -166,11 +166,6 @@ def make_datm_ds(
         variables=required_era5_vars,
     )
 
-    target_ds: xr.Dataset = make_datm_base(
-        source=source,
-        target_stream=target_stream,
-    )
-
     cumulative_required_vars: frozenset[Era5LandVar] = (
         required_era5_vars & era5_cumulative_vars
     )
@@ -188,6 +183,12 @@ def make_datm_ds(
     else:
         source_1d_time: xr.Dataset = source_decumulated
     del source_decumulated
+
+    target_ds: xr.Dataset = make_datm_base(
+        source=source_1d_time,
+        target_stream=target_stream,
+    )
+
     for _target_var in target_vars:
         target_ds[_target_var.value] = make_target_var(
             target_var=_target_var,
