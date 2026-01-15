@@ -124,3 +124,62 @@ def main(
             stream=_target_stream,
         )
 ###END def main
+
+
+if __name__ == '__main__':
+    import argparse
+ 
+    parser = argparse.ArgumentParser(
+        description=(
+            'Convert an ERA5 Land GRIB file to DATM7 threestream netCDF files.'
+        ),
+    )
+    parser.add_argument(
+        'source_file',
+        type=Path,
+        help='Path to the ERA5 Land GRIB file for the current time period.',
+    )
+    parser.add_argument(
+        '--next-source-file',
+        type=Path,
+        default=None,
+        help=(
+            'Path to the ERA5 Land GRIB file for the subsequent time period. '
+            'Needed to properly compute some variables in the last time step.'
+        ),
+    )
+    parser.add_argument(
+        '--previous-source-file',
+        type=Path,
+        default=None,
+        help=(
+            'Path to the ERA5 Land GRIB file for the previous time period. '
+            'Needed to properly compute some variables in the first time step.'
+        ),
+    )
+    parser.add_argument(
+        '--output-streams',
+        type=str,
+        nargs='+',
+        default=[_s.value for _s in Datm7Stream],
+        help=(
+            'List of DATM7 streams to generate. By default, all streams are '
+            'generated.'
+        ),
+    )
+    parser.add_argument(
+        '--eager',
+        action='store_true',
+        help=(
+            'Load the entire dataset into memory before processing. Can speed '
+            'up processing, but requires more memory. Enabled by default.'
+        ),
+    )
+    args = parser.parse_args()
+    main(
+        source_file=args.source_file,
+        next_source_file=args.next_source_file,
+        previous_source_file=args.previous_source_file,
+        output_streams=args.output_streams,
+        eager=args.eager,
+    )

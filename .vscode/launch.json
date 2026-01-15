@@ -1,0 +1,29 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug era5land_to_datm7_threestream.py",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/scripts/era5land_to_datm7_threestream.py",
+            "console": "integratedTerminal",
+            "args": [
+                "${input:era5datafolder}/era5land_d2m_sp_ssrd_strd_t2m_tp_u10_v10_2024_01.grib" //,
+                // "--next-source-file", "${input:era5datafolder}/era5land_d2m_sp_ssrd_strd_t2m_tp_u10_v10_2024_02.grib",
+                // "--previous-source-file", "${input:era5datafolder}/era5land_d2m_sp_ssrd_strd_t2m_tp_u10_v10_2023_12.grib",
+                // "--output-streams", "Solr", "Prec", "TPQWL",
+                // "--eager",
+            ]
+        }
+    ],
+    "inputs": [
+        {
+            "id": "era5datafolder",
+            "type": "promptString",
+            "description": "Absolute path to ERA5 Land data file folder"
+        }
+    ]
+}
