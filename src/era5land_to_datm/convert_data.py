@@ -737,7 +737,7 @@ def make_datm_base(
     creation_date_obj: datetime.date
     if creation_date is None:
         creation_date_obj = datetime.date.today()
-    if isinstance(creation_date, str):
+    elif isinstance(creation_date, str):
         creation_date_obj = datetime.date.fromisoformat(creation_date)
     elif isinstance(creation_date, datetime.date):
         creation_date_obj = creation_date
