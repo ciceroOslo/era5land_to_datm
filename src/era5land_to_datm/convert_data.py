@@ -472,11 +472,11 @@ value_conversion_funcs: dict[Datm7Var, Callable[[xr.Dataset], xr.DataArray]] = {
 } | {
     _target_var: lambda source: compute_average_rate(
         source[era5land_grib_varnames[_source_var]],
-    ) * 1000.0 for _target_var, _source_var in (
-        (Datm7Var.FSDS, Era5LandVar.SSRD),
-        (Datm7Var.PRECTmms, Era5LandVar.TP),
-        (Datm7Var.FLDS, Era5LandVar.STRD),
-    )  # Multiply by 1000, to convert from cumulateive m to mm/sec rate.
+    ) * _scale_factor for _target_var, _source_var, _scale_factor in (
+        (Datm7Var.FSDS, Era5LandVar.SSRD, 1.0),
+        (Datm7Var.PRECTmms, Era5LandVar.TP, 1000.0),  # Multiply by 1000, to convert from cumulative m to mm/sec rate.
+        (Datm7Var.FLDS, Era5LandVar.STRD, 1.0),
+    )
 }
 
 
