@@ -56,6 +56,7 @@ def convert_era5_file(
             | None
         ) = None,
         eager: bool = True,
+        disable_dask: bool = False,
 ) -> None:
     """Converts an ERA5 Land GRIB file to a DAMT7 threestream netCDF file.
 
@@ -96,6 +97,11 @@ def convert_era5_file(
         may lead require less memory usage but lead to some data being reloaded
         and even reprocesseed multiple times, which can slow down the
         processing. By default True. Set to False if you run into memory issues.
+    disable_dask: bool = False, optional
+        Whether to disable dask chunking when opening the ERA5 Land GRIB file.
+        This may be useful if you have enough memory to hold the entire dataset
+        in memory and don't want to install dask. But note that it may lead to
+        less parallalism and higher memory usage. By default False.
     """
     source_file = Path(source_file)
     output_streams = [Datm7Stream(_s) for _s in output_streams]
@@ -123,23 +129,44 @@ def convert_era5_file(
             f'requested streams: {missing_output_streams}'
         )
 
+    logger.info(
+        f'Opening ERA5 Land GRIB files:\n'
+        f'  Main file: {source_file}\n'
+        f'  Next timestep file: {next_source_file}\n'
+        f'  Previous timestep file: {previous_source_file}\n'
+    )
     source_ds: xr.Dataset = open_era5land_grib(
         file=source_file,
         next_file=next_source_file,
         previous_file=previous_source_file,
-        use_chunks=not eager,
+        chunks='auto' if not disable_dask else None,
     )
+    if eager:
+        logger.info('Loading dataset into memory...')
+        source_ds = source_ds.persist()
+    else:
+        logger.info(
+            'Lazy loading requested, not loading datasets into memory yet.'
+        )
+    logger.info('Converting and writing output DATM7 netCDF files...')
     for _target_stream in output_streams:
+        logger.info(f'  Processing stream {_target_stream.value}...')
         _target_ds: xr.Dataset = make_datm_ds(
             source=source_ds,
             target_stream=_target_stream,
             eager=eager,
+        )
+        logger.info(
+            f'    Writing output for stream {_target_stream.value} to '
+            f'{output_files_mapping[_target_stream]}...'
         )
         write_datm_nc(
             _target_ds,
             output_file=output_files_mapping[_target_stream],
             stream=_target_stream,
         )
+        logger.info(f'    Finished writing {_target_stream.value}.')
+    logger.info('Finished converting ERA5 Land GRIB file.')
 ###END def convert_era5_file
 
 

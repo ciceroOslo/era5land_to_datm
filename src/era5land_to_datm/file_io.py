@@ -9,6 +9,7 @@ write_datm_nc
     Writes a DATM netCDF file for a given stream from a given xarray Dataset.
 """
 from pathlib import Path
+import typing as tp
 
 import xarray as xr
 
@@ -23,7 +24,7 @@ def open_era5land_grib(
         *,
         next_file: Path|None = None,
         previous_file: Path|None = None,
-        use_chunks: bool = False,
+        chunks: dict|int|tp.Literal['auto']|None = 'auto',
         date_dim: str = Era5LandDim.DATE,
         step_dim: str = Era5LandDim.STEP,
 ) -> xr.Dataset:
@@ -44,10 +45,10 @@ def open_era5land_grib(
         given, it will be lazily opened, and the last time step will be
         extracted and concatenated to the main dataset along the time dimension.
         Optional, by default None.
-    use_chunks : bool, optional
-        Whether to use chunking (with dask). If False, the returned dataset will
-        use xarray's default lazy loading mechanism without chunking. By default
-        False.
+    chunks : dict | int | 'auto' | None, optional
+        Chunking option for xarray when opening the dataset. Passed directly to
+        `xarray.open_dataset()`. By default 'auto'. To disable chunking, set to
+        False. In order to use xarray's lazy loading without dask, set to None.
     date_dim : str, optional
         Name of the time/date dimension in the ERA5 Land dataset. By default
         given by the string enum `Era5LandDim.DATE`.
@@ -68,10 +69,9 @@ def open_era5land_grib(
         match the *last* intra-date time step in the next file, or if the next
         file contains variables that are not present in the source file.
     """
-    chunk_option: str|int|None = 'auto' if use_chunks else None
     era5_ds: xr.Dataset = xr.open_dataset(
         file,
-        chunks=chunk_option,
+        chunks=chunks,
     )
     if next_file is not None:
         next_ds: xr.Dataset = xr.open_dataset(
