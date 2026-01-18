@@ -64,6 +64,7 @@ from collections.abc import (
 )
 import datetime
 import functools
+import logging
 import typing as tp
 
 import xarray as xr
@@ -97,6 +98,9 @@ from .variables import (
     era5_var_units,
 )
 
+
+
+logger = logging.getLogger(__name__)
 
 
 def make_datm_ds(
@@ -134,6 +138,9 @@ def make_datm_ds(
         but in future versions, None may be used to auto-detect the layout.
         Passing `ERA5LandTimeLayout.LINEAR` will raise a NotImplementedError.
     """
+    logger.debug(
+        f'Starting `make_datm_ds` for target stream {target_stream}.'
+    )
     if time_layout is None:
         time_layout = ERA5LandTimeLayout.DATE_STEP
     if time_layout != ERA5LandTimeLayout.DATE_STEP:
@@ -147,7 +154,7 @@ def make_datm_ds(
         _var for _target_var in target_vars
         for _var in datm7_required_era5_vars[_target_var]
     )
-    required_era5_girb_varnames: frozenset[str] = frozenset(
+    required_era5_girb_varnames: set[Hashable] = set(
         era5land_grib_varnames[_var]
         for _var in required_era5_vars
     )
@@ -169,18 +176,33 @@ def make_datm_ds(
     cumulative_required_vars: frozenset[Era5LandVar] = (
         required_era5_vars & era5_cumulative_vars
     )
+    if len(cumulative_required_vars) > 0:
+        logger.debug(
+            f'Decumulating cumulative ERA5 Land variables for target stream '
+            f'{target_stream}: {cumulative_required_vars}'
+        )
     source_decumulated: xr.Dataset = source.copy(deep=False)
     for _cum_var in cumulative_required_vars:
+        logger.debug(
+            f'    Decumulating {era5land_grib_varnames[_cum_var]}...'
+        )
         _cum_varname = era5land_grib_varnames[_cum_var]
         source_decumulated[_cum_varname] = decumulate_era5land_var(
             source[_cum_varname],
         )
 
     if time_layout == ERA5LandTimeLayout.DATE_STEP:
+        logger.debug(
+            'Converting ERA5 Land dataset to linear time layout...'
+        )
         source_1d_time: xr.Dataset = era5land_to_linear_time(
             source=source_decumulated,
         )
     else:
+        logger.debug(
+            'ERA5 Land dataset already in linear time layout, no conversion '
+            'of time dimension layout is needed.'
+        )
         source_1d_time: xr.Dataset = source_decumulated
     del source_decumulated
 
@@ -188,18 +210,32 @@ def make_datm_ds(
         source=source_1d_time,
         target_stream=target_stream,
     )
+    logger.debug(
+        f'Created base DATM dataset for target stream {target_stream}.'
+    )
 
     for _target_var in target_vars:
+        logger.debug(
+            f'Processing and adding target variable {_target_var}...'
+        )
         target_ds[_target_var.value] = make_target_var(
             target_var=_target_var,
             source=source_1d_time,
         )
     del source_1d_time
+    logger.debug(
+        f'Converted all variables, starting postprocessing for target stream '
+        f'{target_stream}...'
+    )
     target_ds = postprocess_converted_datm_ds(
         target_ds=target_ds,
         target_stream=target_stream,
         source=source,
         eager=eager,
+    )
+    logger.debug(
+        f'Finished processing target stream {target_stream}, returning from '
+        f'`make_datm_ds`.'
     )
     return target_ds
 ###END def make_datm_ds

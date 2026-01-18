@@ -57,6 +57,7 @@ def convert_era5_file(
         ) = None,
         eager: bool = True,
         disable_dask: bool = False,
+        logging_level: int = logging.INFO,
 ) -> None:
     """Converts an ERA5 Land GRIB file to a DAMT7 threestream netCDF file.
 
@@ -103,6 +104,11 @@ def convert_era5_file(
         in memory and don't want to install dask. But note that it may lead to
         less parallalism and higher memory usage. By default False.
     """
+    root_logger: logging.Logger = logging.getLogger()
+    if root_logger.level != logging_level:
+        root_logger.setLevel(logging_level)
+    global logger
+    logger.setLevel(logging_level)
     if not disable_dask:
         from korsbakken_python_utils.dask_utils import (
             get_registered_progress_bars,
