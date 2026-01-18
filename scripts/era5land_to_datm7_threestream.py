@@ -103,6 +103,13 @@ def convert_era5_file(
         in memory and don't want to install dask. But note that it may lead to
         less parallalism and higher memory usage. By default False.
     """
+    if not disable_dask:
+        from korsbakken_python_utils.dask_utils import (
+            get_registered_progress_bars,
+            set_global_progress_bar,
+        )
+        if len(get_registered_progress_bars()) == 0:
+            set_global_progress_bar()
     source_file = Path(source_file)
     output_streams = [Datm7Stream(_s) for _s in output_streams]
     output_files_mapping: dict[Datm7Stream, Path]
@@ -143,7 +150,11 @@ def convert_era5_file(
     )
     if eager:
         logger.info('Loading dataset into memory...')
-        source_ds = source_ds.persist()
+        if not disable_dask:
+            source_ds = source_ds.persist()
+        else:
+            source_ds = source_ds.load()
+        logger.info('Finished loading dataset into memory.')
     else:
         logger.info(
             'Lazy loading requested, not loading datasets into memory yet.'

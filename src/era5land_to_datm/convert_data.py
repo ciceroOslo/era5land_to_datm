@@ -233,7 +233,12 @@ def decumulate_era5land_var(
         raise ValueError(
             f'The source DataArray must have a step dimension {step_dim}.'
         )
-    source = source.load()
+    # Load data if not backed by a dask array; Persist it but keep as a dask
+    # array if is backed by a dask array.
+    if source.chunks is not None:
+        source = source.persist()
+    else:
+        source = source.load()
     decumulated: xr.DataArray = xr.concat(
         [
             source.isel({step_dim: 0}),
