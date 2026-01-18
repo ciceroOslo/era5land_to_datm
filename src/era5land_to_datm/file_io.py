@@ -78,8 +78,8 @@ def open_era5land_grib(
             next_file,
             chunks='auto',
         ).isel({date_dim: 0, step_dim: -1})
-        source_last_date = era5_ds[date_dim].isel({date_dim: -1}).item()
-        next_first_date = next_ds[date_dim].item()
+        source_last_date = era5_ds[date_dim].isel({date_dim: -1})
+        next_first_date = next_ds[date_dim]
         if source_last_date != next_first_date:
             raise ValueError(
                 f'The last date in the source file ({source_last_date}) does not '
@@ -90,8 +90,8 @@ def open_era5land_grib(
                 'The next file contains variables that are not present in the '
                 'source file.'
             )
-        source_last_step = era5_ds[step_dim].isel({step_dim: -1}).item()
-        next_last_step = next_ds[step_dim].item()
+        source_last_step = era5_ds[step_dim].isel({step_dim: -1})
+        next_last_step = next_ds[step_dim]
         if source_last_step != next_last_step:
             raise ValueError(
                 f'The last intra-date time step in the source file '
@@ -110,8 +110,8 @@ def open_era5land_grib(
             previous_file,
             chunks='auto',
         ).isel({date_dim: -1, step_dim: -2})
-        source_first_date = era5_ds[date_dim].isel({date_dim: 0}).item()
-        previous_last_date = previous_ds[date_dim].item()
+        source_first_date = era5_ds[date_dim].isel({date_dim: 0})
+        previous_last_date = previous_ds[date_dim]
         if source_first_date != previous_last_date:
             raise ValueError(
                 f'The first date in the source file ({source_first_date}) does not '
@@ -122,8 +122,8 @@ def open_era5land_grib(
                 'The previous file contains variables that are not present in the '
                 'source file.'
             )
-        source_penultimate_step = era5_ds[step_dim].isel({step_dim: -2}).item()
-        previous_penultimate_step = previous_ds[step_dim].item()
+        source_penultimate_step = era5_ds[step_dim].isel({step_dim: -2})
+        previous_penultimate_step = previous_ds[step_dim]
         if source_penultimate_step != previous_penultimate_step:
             raise ValueError(
                 f'The second last intra-date time step in the source file '
