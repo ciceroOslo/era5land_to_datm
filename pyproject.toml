@@ -1,6 +1,6 @@
 [project]
 authors = [{name = "Jan Ivar Korsbakken", email = "janko@cicero.oslo.no"}]
-dependencies = ["korsbakken-python-utils[dask] @ git+https://github.com/korsbakken/korsbakken_python_utils.git@v0.4.0?rev_type=tag"]
+dependencies = ["korsbakken-python-utils[dask] @ git+https://github.com/korsbakken/korsbakken_python_utils.git@v0.5.1?rev_type=tag"]
 name = "era5land_to_datm"
 description = "Tools to download ERA5 Land meteorology files and convert to DATM forcing data for use with NorESM / CTSM"
 requires-python = ">= 3.13"
