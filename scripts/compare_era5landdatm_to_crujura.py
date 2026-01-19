@@ -4,7 +4,7 @@ This script is a cell script intended to be run in Visual Studio Code. If
 needed, it can be exported from VS Code a Jupyter notebook and run in Jupyter or
 compatible tools.
 """
- # %% [markdown]
+# %% [markdown]
 # # Cell script to compare converted ERA5 Land data files to CRU JRA data.
 #
 # This script is a cell script intended to be run in Visual Studio Code. If
@@ -56,7 +56,7 @@ pbar.register()
 # do conservative mapping or be as precise as possible.
 # %%
 era5datm_dir: Path = Path.home() / 'src/repos/norsink/temp_data/era5land/converted'
-crujura_dir: Path = Path.home() / 'src/repos/norsink/temp_data/datm7'
+crujra_dir: Path = Path.home() / 'src/repos/norsink/temp_data/datm7'
 
 era5datm_streamglobs: dict[Datm7Stream, str] = {
     _stream: f'clmforc.ERA5Land_NorwayRect0.1x0.1.{_stream.value}.2019_*.nc'
@@ -69,7 +69,7 @@ era5datm_files: dict[Datm7Stream, list[Path]] = {
 }
 crujra_files: list[Path] = sorted(
     list(
-        crujura_dir.glob('clmforc.CRUJRAv2.5_0.5x0.5.*.2019.nc')
+        crujra_dir.glob('clmforc.CRUJRAv2.5_0.5x0.5.*.2019_NorwayRect.nc')
     )
 )
 
@@ -87,7 +87,7 @@ for _stream, _files in era5datm_files.items():
         _files,
         drop_variables=drop_vars,
         chunks='auto',
-        concat_dim=Datm7Dim.TIME.value,
+        # concat_dim=Datm7Dim.TIME.value,
         parallel=True,
         combine_attrs='override',
         data_vars='minimal',
@@ -105,34 +105,58 @@ era5datm_ds: xr.Dataset = xr.merge(
 )
 
 # %% [markdown]
+# ### Interpolate ERA5 Land data to CRU JRA coordinates
+#
+# The ERA5 Land is assumed to have higher resolution (both spatially and
+# temporally) than the CRU JRA data, so we interpolate the ERA5 Land data to
+# the coordinates of the CRU JRA data for comparison. Simple linear
+# interpolation is used given that the purpose is a direct comparison, not to
+# produce a data set for model runs or that otherwise need to do conservative
+# mapping or be as precise as possible.
+#
+# The ERA5 Land data must be converted to noleap calendar to match the calendar
+# used in the CRU JRA stream files. Both datasets are also ordered before
+# interpolation to make the calculation more efficient.
+# %%
+era5datm_ds_noleap: xr.Dataset = (
+    era5datm_ds
+    .sortby(list(era5datm_ds.dims))
+    .convert_calendar('noleap', dim=Datm7Dim.TIME.value)
+)
+
+# %% [markdown]
 # ### Obtain coordinate ranges of ERA5 Land data
 # %%
 era5datm_coord_ranges: dict[Datm7Dim, slice] = {
     Datm7Dim.LAT: slice(
-        float(era5datm_ds[Datm7Dim.LAT.value].min()),
-        float(era5datm_ds[Datm7Dim.LAT.value].max()),
+        era5datm_ds_noleap[Datm7Dim.LAT.value].min(),
+        era5datm_ds_noleap[Datm7Dim.LAT.value].max(),
     ),
     Datm7Dim.LON: slice(
-        float(era5datm_ds[Datm7Dim.LON.value].min()),
-        float(era5datm_ds[Datm7Dim.LON.value].max()),
+        era5datm_ds_noleap[Datm7Dim.LON.value].min(),
+        era5datm_ds_noleap[Datm7Dim.LON.value].max(),
     ),
-    Datm7Dim.TIME: slice(
-        float(era5datm_ds[Datm7Dim.TIME.value].min()),
-        float(era5datm_ds[Datm7Dim.TIME.value].max()),
-    ),
+    # Datm7Dim.TIME: slice(
+    #     era5datm_ds_noleap[Datm7Dim.TIME.value].min(),
+    #     era5datm_ds_noleap[Datm7Dim.TIME.value].max(),
+    # ),
 }
 
-# ## Downselect and merge CRU JRA data files
+# %% [markdown]
+# ### Downselect and merge CRU JRA data files
 # %%
 crujra_ds: xr.Dataset = xr.merge(
     (
         xr.open_dataset(
             _file,
             chunks='auto',
+            drop_variables=drop_vars,
         ).sel(
             era5datm_coord_ranges,
         ) for _file in crujra_files
     ),
     join='outer',
-    combine_attrs='no_conflicts',
+    combine_attrs='override',
+    compat='identical',
 )
+crujra_ds = crujra_ds.sortby(list(crujra_ds.dims))
