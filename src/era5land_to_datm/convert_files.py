@@ -296,7 +296,6 @@ def convert_monthly_era5_files(
             source_files_func(year=_year, month=_month)
             for _year in range(start_year_month[0], end_year_month[0] + 1)
             for _month in range(start_year_month[1], end_year_month[1] + 1)
-            for _stream in Datm7Stream
         ]
     elif isinstance(source_files, Sequence):
         use_source_files = [Path(_f) for _f in source_files]
