@@ -80,6 +80,7 @@ from .dimensions import (
     ERA5LandTimeLayout,
     LinearizedTimeDimId,
 )
+from .logger_registry import register_logger
 from .meteorology import (
     specific_humidity_from_dewpoint_pressure,
 )
@@ -101,6 +102,7 @@ from .variables import (
 
 
 logger = logging.getLogger(__name__)
+register_logger(logger)
 
 
 def make_datm_ds(

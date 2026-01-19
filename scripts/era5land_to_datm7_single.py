@@ -14,6 +14,10 @@ from pathlib import Path
 
 from era5land_to_datm.convert_files import convert_era5_file
 from era5land_to_datm.datm_streams import Datm7Stream
+from era5land_to_datm.logger_registry import (
+    register_logger,
+    set_logging_level,
+)
 
 
 if __name__ == '__main__':
@@ -92,7 +96,9 @@ if __name__ == '__main__':
     )
     args = parser.parse_args()
     logging.basicConfig(level=args.log_level.upper())
+    set_logging_level(getattr(logging, args.log_level.upper()))
     logger = logging.getLogger(__name__)
+    register_logger(logger)
     logger.debug(f'Parsed arguments: {args}')
     logger.debug(
         f'Calling `convert_era5_file` with parameters:'

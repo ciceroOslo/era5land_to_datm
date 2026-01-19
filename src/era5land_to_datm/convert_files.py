@@ -32,19 +32,21 @@ from korsbakken_python_utils.containers.dataobject import UniformTypeDataObject
 import numpy as np
 import xarray as xr
 
-from era5land_to_datm.convert_data import make_datm_ds
-from era5land_to_datm.datm_streams import Datm7Stream
-from era5land_to_datm.dimensions import (
+from .convert_data import make_datm_ds
+from .datm_streams import Datm7Stream
+from .dimensions import (
     Datm7Dim,
 )
-from era5land_to_datm.file_io import (
+from .file_io import (
     open_era5land_grib,
     write_datm_nc,
 )
+from .logger_registry import register_logger
 
 
 
 logger: logging.Logger = logging.getLogger(__name__)
+register_logger(logger)
 
 
 def convert_era5_file(
