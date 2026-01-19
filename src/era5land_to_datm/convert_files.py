@@ -151,9 +151,9 @@ def convert_era5_file(
 
     logger.info(
         f'Opening ERA5 Land GRIB files:\n'
-        f'  Main file: {source_file}\n'
-        f'  Next timestep file: {next_source_file}\n'
-        f'  Previous timestep file: {previous_source_file}\n'
+        f'  Main file: {source_file!s}\n'
+        f'  Next timestep file: {next_source_file!s}\n'
+        f'  Previous timestep file: {previous_source_file!s}\n'
     )
     source_ds: xr.Dataset = open_era5land_grib(
         file=source_file,
@@ -317,7 +317,9 @@ def convert_monthly_era5_files(
                 str(_f) for _f in missing_source_files
             )
         )
-    logger.debug(f'Using source files: {use_source_files}')
+    logger.debug(
+        f'Using source files: ' + ', '.join(str(_f) for _f in use_source_files)
+    )
     if isinstance(output_files, str):
         _output_files: str = copy.copy(output_files)
         def _output_files_func(year: int, month: int, stream: Datm7Stream) -> Path:
@@ -392,7 +394,11 @@ def convert_monthly_era5_files(
                 str(_f) for _f in existing_output_files
             )
         )
-    logger.debug(f'Using output files: {use_output_files}')
+    logger.debug(
+        f'Using output files: ' + ', '.join(
+            str(_f) for _mapping in use_output_files for _f in _mapping.values()
+        )
+    )
     if (
             previous_source_file is None
             and source_files_func is not None
@@ -407,7 +413,7 @@ def convert_monthly_era5_files(
     elif isinstance(previous_source_file, str):
         previous_source_file = Path(previous_source_file)
     logger.debug(
-        f'Using previous source file: {previous_source_file}'
+        f'Using previous source file: {previous_source_file!s}'
         if previous_source_file is not None
         else 'No previous source file specified.'
     )
