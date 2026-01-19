@@ -175,4 +175,6 @@ era5datm_ds_interp: xr.Dataset = era5datm_ds_noleap.interp_like(
 # ## Create difference and relative difference Datasets
 # %%
 difference_ds: xr.Dataset = era5datm_ds_interp - crujra_ds
-relative_difference_ds: xr.Dataset = difference_ds / crujra_ds
+relative_difference_ds: xr.Dataset = difference_ds / crujra_ds.where(
+    crujra_ds != 0
+)  # Avoid division by zero
