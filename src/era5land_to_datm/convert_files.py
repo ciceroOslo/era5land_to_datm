@@ -222,8 +222,8 @@ def convert_monthly_era5_files(
             | _YearMonthStreamFilepathFunction
             | str
         ),
-        start_year_month: tp.Tuple[int, int] | None = None,
-        end_year_month: tp.Tuple[int, int] | None = None,
+        start_year_month: tuple[int, int] | None = None,
+        end_year_month: tuple[int, int] | None = None,
         next_source_file: Path|str|None = None,
         previous_source_file: Path|str|None = None,
 ) -> None:

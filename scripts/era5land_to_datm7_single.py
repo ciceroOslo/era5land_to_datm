@@ -93,6 +93,16 @@ if __name__ == '__main__':
     args = parser.parse_args()
     logging.basicConfig(level=args.log_level.upper())
     logger = logging.getLogger(__name__)
+    logger.debug(f'Parsed arguments: {args}')
+    logger.debug(
+        f'Calling `convert_era5_file` with parameters:'
+        f'\n  source_file: {args.source_file}'
+        f'\n  next_source_file: {args.next_source_file}'
+        f'\n  previous_source_file: {args.previous_source_file}'
+        f'\n  output_streams: {args.output_streams}'
+        f'\n  keep_first_last_dates: {args.keep_first_last_dates}'
+        f'\n  eager: {not args.lazy}'
+    )
     convert_era5_file(
         source_file=args.source_file,
         next_source_file=args.next_source_file,
