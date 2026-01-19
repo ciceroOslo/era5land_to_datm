@@ -143,6 +143,6 @@ if __name__ == '__main__':
     convert_monthly_era5_files(
         source_files=source_files_pattern,
         output_files=output_files_pattern,
-        start_year_month=args.start_year_month,
-        end_year_month=args.end_year_month,
+        start_year_month=tuple(args.start_year_month),
+        end_year_month=tuple(args.end_year_month),
     )
