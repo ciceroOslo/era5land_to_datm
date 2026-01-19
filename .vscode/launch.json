@@ -17,6 +17,22 @@
                 // "--output-streams", "Solr", "Prec", "TPQWL",
                 // "--lazy",
             ]
+        },
+        {
+            "name": "Debug era5land_to_datm7_multiyearmonth.py",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/scripts/era5land_to_datm7_multiyearmonth.py",
+            "console": "integratedTerminal",
+            "args": [
+                "--source-dir", "${input:era5datafolder}",
+                "--source-files", "era5land_d2m_sp_ssrd_strd_t2m_tp_u10_v10_{year:04d}_{month:02d}.grib",
+                "--output-dir", "${input:era5outputfolder}",
+                "--output-files", "clmforc.ERA5Land_NorwayRect0.1x0.1.{stream}.{year:04d}_{month:02d}.nc",
+                "--start-year-month", "2024", "03",
+                "--end-year-month", "2024", "05",
+                "--log-level", "DEBUG"
+            ]
         }
     ],
     "inputs": [
@@ -24,6 +40,11 @@
             "id": "era5datafolder",
             "type": "promptString",
             "description": "Absolute path to ERA5 Land data file folder"
+        },
+        {
+            "id": "era5outputfolder",
+            "type": "promptString",
+            "description": "Absolute path to folder for converted output files"
         }
     ]
 }
