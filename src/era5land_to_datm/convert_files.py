@@ -442,8 +442,8 @@ def convert_monthly_era5_files(
             (*use_source_files[1:], next_source_file),
             use_output_files,
     ):
-        logger.debug(
-            f'Calling `convert_era5_file` with parameters:\n'
+        logger.info(
+            f'Converting files:\n'
             f'  source_file: {_source!s}\n'
             f'  next_source_file: {_next_source!s}\n'
             f'  previous_source_file: {_previous_source!s}\n'

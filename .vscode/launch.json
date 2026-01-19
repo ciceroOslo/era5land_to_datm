@@ -30,8 +30,8 @@
                 "--output-dir", "${input:era5outputfolder}",
                 "--output-files", "clmforc.ERA5Land_NorwayRect0.1x0.1.{stream}.{year:04d}_{month:02d}.nc",
                 "--start-year-month", "2019", "03",
-                "--end-year-month", "2019", "05",
-                "--log-level", "DEBUG"
+                "--end-year-month", "2019", "05" //,
+                // "--log-level", "DEBUG"
             ]
         }
     ],
