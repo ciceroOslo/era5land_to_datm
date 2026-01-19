@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """Script to convert a single ERA5 Land GRIB file to netCDF suitable for DATM7.
 
 The script converts a single main ERA5 Land GRIB file, with optional previous

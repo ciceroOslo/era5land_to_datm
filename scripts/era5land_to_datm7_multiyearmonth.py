@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """Convert ERA5-Land monthly data to DATM7 format for multiple years and months.
 
 This script converts a series of ERA5 Land GRIB files with data for one month
