@@ -431,16 +431,23 @@ def convert_monthly_era5_files(
     elif isinstance(next_source_file, str):
         next_source_file = Path(next_source_file)
     logger.debug(
-        f'Using next source file: {next_source_file}'
+        f'Using next source file: {next_source_file!s}'
         if next_source_file is not None
         else 'No next source file specified.'
     )
     for _previous_source, _source, _next_source, _output_mapping in zip(
             (previous_source_file, *use_source_files[:-1]),
             use_source_files,
-            (next_source_file, *use_source_files[1:]),
+            (*use_source_files[1:], next_source_file),
             use_output_files,
     ):
+        logger.debug(
+            f'Calling `convert_era5_file` with parameters:\n'
+            f'  source_file: {_source!s}\n'
+            f'  next_source_file: {_next_source!s}\n'
+            f'  previous_source_file: {_previous_source!s}\n'
+            f'  output_files: {_output_mapping!s}\n'
+        )
         convert_era5_file(
             source_file=_source,
             next_source_file=_next_source,
