@@ -21,6 +21,7 @@ from collections.abc import (
     Mapping,
     Sequence,
 )
+import copy
 import enum
 import itertools
 import logging
@@ -274,8 +275,8 @@ def convert_monthly_era5_files(
         time step in the first output file if this is not provided.
     """
     if isinstance(source_files, str):
+        _source_files: str = copy.copy(source_files)
         def _source_files_func(year: int, month: int) -> Path:
-            _source_files: str = str(source_files)
             return Path(_source_files.format(year=year, month=month))
         source_files = _source_files_func
     if callable(source_files):
@@ -318,8 +319,8 @@ def convert_monthly_era5_files(
         )
     logger.debug(f'Using source files: {use_source_files}')
     if isinstance(output_files, str):
+        _output_files: str = copy.copy(output_files)
         def _output_files_func(year: int, month: int, stream: Datm7Stream) -> Path:
-            _output_files: str = str(output_files)
             return Path(_output_files.format(year=year, month=month, stream=stream))
         output_files = _output_files_func
     if callable(output_files):
