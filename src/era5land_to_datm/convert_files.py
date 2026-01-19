@@ -33,6 +33,9 @@ import xarray as xr
 
 from era5land_to_datm.convert_data import make_datm_ds
 from era5land_to_datm.datm_streams import Datm7Stream
+from era5land_to_datm.dimensions import (
+    Datm7Dim,
+)
 from era5land_to_datm.file_io import (
     open_era5land_grib,
     write_datm_nc,
@@ -54,6 +57,7 @@ def convert_era5_file(
             | Callable[[Datm7Stream], Path]
             | None
         ) = None,
+        keep_first_last_dates: bool = False,
         eager: bool = True,
         disable_dask: bool = False,
 ) -> None:
@@ -90,6 +94,15 @@ def convert_era5_file(
         None by default, in which case output files will be equal to the source
         file with an underscore and the stream ID appended, before a `.nc`
         extension.
+    keep_first_last_dates : bool, optional
+        Whether to keep the first and last dates from the source ERA5 Land
+        dataset in the output DATM7 datasets. By default False. Normally, the
+        one-month ERA5 Land files contain the last date of the previous month
+        and the first timestep (midnight) of the first day in the next month,
+        but with null values. These are normally discarded in the conversion in
+        order to ensure that the output files only contain data for a single
+        calendar month, and don\'t introduce overlaps in the file streams. Set
+        this flag to keep these dates in the output.
     eager : bool, optional
         Whether to load the entire dataset into memory before processing. This
         can significantly speed up some operations, while setting it to False
@@ -170,6 +183,17 @@ def convert_era5_file(
             f'    Writing output for stream {_target_stream.value} to '
             f'{output_files_mapping[_target_stream]}...'
         )
+        if not keep_first_last_dates:
+            time_arr: xr.DataArray = _target_ds[Datm7Dim.TIME]
+            _target_ds = _target_ds.sel(
+                {
+                    Datm7Dim.TIME: (
+                        time_arr.dt.date != time_arr.dt.date.min()
+                    ) & (
+                        time_arr.dt.date != time_arr.dt.date.max()
+                    )
+                }
+            )
         write_datm_nc(
             _target_ds,
             output_file=output_files_mapping[_target_stream],

@@ -68,6 +68,20 @@ if __name__ == '__main__':
         ),
     )
     parser.add_argument(
+        '--keep-first-last-dates',
+        action='store_true',
+        help=(
+            'Keep the first and last dates from the source ERA5 Land file in '
+            'the converted DATM files. Normally, the one-month ERA5 Land files '
+            'contain the last date of the previous month and the first '
+            'timestep (midnight) of the first day in the next month, but with '
+            'null values. These are normally discarded in the conversion in '
+            'order to ensure that the output files only contain data for a '
+            'single calendar month, and don\'t introduce overlaps in the file '
+            'streams. Set this flag to keep these dates in the output.'
+        ),
+    )
+    parser.add_argument(
         '--log-level',
         type=str,
         default='INFO',
@@ -84,5 +98,6 @@ if __name__ == '__main__':
         next_source_file=args.next_source_file,
         previous_source_file=args.previous_source_file,
         output_streams=args.output_streams,
+        keep_first_last_dates=args.keep_first_last_dates,
         eager=not args.lazy,
     )
