@@ -90,12 +90,22 @@ if __name__ == '__main__':
         type=str,
         default='INFO',
         help=(
-            'Logging level. One of DEBUG, INFO, WARNING, ERROR, CRITICAL. '
-            'Default is INFO.'
+            'Logging level for logging done by this script and its submodules '
+            '(not third-party libraries). One of DEBUG, INFO, WARNING, ERROR, '
+            'CRITICAL. Default is INFO.'
+        ),
+    )
+    parser.add_argument(
+        '--global-log-level',
+        type=str,
+        default='WARNING',
+        help=(
+            'Global logging level for third-party packages. One of DEBUG, '
+            'INFO, WARNING, ERROR, CRITICAL. Default is WARNING.'
         ),
     )
     args = parser.parse_args()
-    logging.basicConfig(level=args.log_level.upper())
+    logging.basicConfig(level=args.global_log_level.upper())
     set_logging_level(getattr(logging, args.log_level.upper()))
     logger = logging.getLogger(__name__)
     register_logger(logger)
