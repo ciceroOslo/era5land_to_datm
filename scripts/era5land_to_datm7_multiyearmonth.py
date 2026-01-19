@@ -24,23 +24,55 @@ if __name__ == '__main__':
             'threestream netCDF files.'
         ),
     )
-
     parser.add_argument(
-        'source_files',
+        '--source-dir',
         type=Path,
-        nargs='+',
-        help='Paths to the ERA5 Land GRIB files to convert.',
+        required=True,
+        help=(
+            'Directory containing the source ERA5 Land GRIB files. If not an '
+            'absolute path, it will be resolved relative to the current '
+            'working directory. It is recommended to use absolute paths to '
+            'avoid possible issues with what directory Python sets as the '
+            'current working directory when running the script.'
+        ),
+    )
+    parser.add_argument(
+        '--source-files',
+        type=str,
+        required=True,
+        help=(
+            'Pattern for the file names of the source ERA5 Land GRIB files. '
+            'The pattern must include {year} and {month} placeholders for the '
+            'year and month of each file. The string pattern will be processed '
+            'using the `str.format()` Python method. **NB!** If the years '
+            'and/or months in the file names use leading zeros (e.g., month 01 '
+            'for January), the placeholders must include the appropriate '
+            'formatting specifiers, e.g., {month:02d} for two-digit months '
+            'with leading zero.'
+        ),
+    )
+    parser.add_argument(
+        '--output-dir',
+        type=Path,
+        required=True,
+        help=(
+            'Directory where the output DATM7 netCDF files will be saved. If '
+            'not an absolute path, it will be resolved relative to the '
+            'current working directory. It is recommended to use absolute '
+            'paths to avoid possible issues with what directory Python sets '
+            'as the current working directory when running the script.'
+        ),
     )
     parser.add_argument(
         '--output-files',
         type=str,
-        nargs=1,
         required=True,
         help=(
             'Output file path pattern, with {year}, {month} and {stream} '
             'placeholders for the year, month and stream of each file. The '
             'string pattern will be processed using the `str.format()` Python '
-            'method.'
+            'method. The same comment about formatting of year and month '
+            'applies as for --source-files.'
         ),
     )
     parser.add_argument(
@@ -54,7 +86,7 @@ if __name__ == '__main__':
             'separated by a space. For example: 2000 01.\n'
             'Note that the script will attempt to read the files for one month '
             'before the specified start month, using the pattern provided in '
-            '--output-files. If present, it will be usd to compute cumulative '
+            '--source-files. If present, it will be usd to compute cumulative '
             'variables that need the last value of the previous month. If not '
             'present, those variables will have missing values in the first '
             'time step. Also note that if a file with the expected pattern for '
@@ -74,7 +106,7 @@ if __name__ == '__main__':
             '--start-year-month through --end-year-month must be present in '
             'the specified source files. Note that the script will attempt to '
             'read the files for one month after the specified end month, using '
-            'the pattern provided in --output-files. If present, it will be '
+            'the pattern provided in --source-files. If present, it will be '
             'usd to compute cumulative variables that need the first value of '
             'the next month. If not present, those variables will have missing '
             'values in the last time step. Also note that if a file with the '
@@ -96,16 +128,21 @@ if __name__ == '__main__':
     logging.basicConfig(level=args.log_level.upper())
     logger = logging.getLogger(__name__)
     logger.debug(f'Parsed arguments: {args}')
+
+    source_dir: Path = args.source_dir.resolve()
+    output_dir: Path = args.output_dir.resolve()
+    source_files_pattern: str = str(source_dir / args.source_files)
+    output_files_pattern: str = str(output_dir / args.output_files)
     logger.debug(
         f'Calling `convert_monthly_era5_files` with parameters:'
-        f'\n  source_files: {args.source_files}'
-        f'\n  output_files: {args.output_files}'
+        f'\n  source_files: {source_files_pattern}'
+        f'\n  output_files: {output_files_pattern}'
         f'\n  start_year_month: {args.start_year_month}'
         f'\n  end_year_month: {args.end_year_month}'
     )
     convert_monthly_era5_files(
-        source_files=args.source_files,
-        output_files=args.output_files[0],
+        source_files=source_files_pattern,
+        output_files=output_files_pattern,
         start_year_month=args.start_year_month,
         end_year_month=args.end_year_month,
     )
