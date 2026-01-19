@@ -19,6 +19,7 @@ import typing as tp
 
 import dask
 from dask.diagnostics.progress import ProgressBar
+import numpy as np
 import xarray as xr
 
 from era5land_to_datm.dimensions import (
@@ -160,3 +161,18 @@ crujra_ds: xr.Dataset = xr.merge(
     compat='identical',
 )
 crujra_ds = crujra_ds.sortby(list(crujra_ds.dims))
+
+# %% [markdown]
+# ### Interpolate ERA5 Land data to CRU JRA coordinates
+# %%
+era5datm_ds_interp: xr.Dataset = era5datm_ds_noleap.interp_like(
+    crujra_ds,
+    method='linear',
+    assume_sorted=True,
+)
+
+# %% [markdown]
+# ## Create difference and relative difference Datasets
+# %%
+difference_ds: xr.Dataset = era5datm_ds_interp - crujra_ds
+relative_difference_ds: xr.Dataset = difference_ds / crujra_ds
