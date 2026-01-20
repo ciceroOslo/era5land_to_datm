@@ -29,6 +29,12 @@ if __name__ == '__main__':
             'Convert a series of monthly ERA5 Land GRIB files to DATM7 '
             'threestream netCDF files.'
         ),
+        epilog=(
+            '**NB!** If you will enter the processed files into CIME XML '
+            'database files for use with CESM, you should ensure that the file '
+            'names contain year and month in the format `YYYY-MM`. See the '
+            'documentation of the `--output-files` argument.'
+        ),
     )
     parser.add_argument(
         '--source-dir',
@@ -78,7 +84,13 @@ if __name__ == '__main__':
             'placeholders for the year, month and stream of each file. The '
             'string pattern will be processed using the `str.format()` Python '
             'method. The same comment about formatting of year and month '
-            'applies as for --source-files.'
+            'applies as for --source-files.\n'
+            '**NB!** The XML database files used by CIME under CESM require '
+            'that the file names contain year and month in the format YYYY-MM '
+            'if you want to parametrize the file paths by year and month '
+            'rather than manually listing every single file. In this case, the '
+            'pattern must include the year and month placeholders as '
+            '{year:04d}-{month:02d}`.'
         ),
     )
     parser.add_argument(

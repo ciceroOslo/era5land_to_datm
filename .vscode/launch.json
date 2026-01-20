@@ -28,9 +28,9 @@
                 "--source-dir", "${input:era5datafolder}",
                 "--source-files", "era5land_d2m_sp_ssrd_strd_t2m_tp_u10_v10_{year:04d}_{month:02d}.grib",
                 "--output-dir", "${input:era5outputfolder}",
-                "--output-files", "clmforc.ERA5Land_NorwayRect0.1x0.1.{stream}.{year:04d}_{month:02d}.nc",
-                "--start-year-month", "2019", "03",
-                "--end-year-month", "2019", "05" //,
+                "--output-files", "clmforc.ERA5Land_NorwayRect0.1x0.1.{stream}.{year:04d}-{month:02d}.nc",
+                "--start-year-month", "2019", "01",
+                "--end-year-month", "2019", "12" //,
                 // "--log-level", "DEBUG"
             ]
         }
