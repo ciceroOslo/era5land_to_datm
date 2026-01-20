@@ -220,9 +220,18 @@ def make_datm_ds(
         logger.debug(
             f'Processing and adding target variable {_target_var}...'
         )
-        target_ds[_target_var.value] = make_target_var(
-            target_var=_target_var,
-            source=source_1d_time,
+        # Merge the target variable into the target Dataset rather than simply
+        # assigning it, to avoid overwriting index coordinate attributes.
+        target_ds = target_ds.merge(
+            {
+                _target_var.value: make_target_var(
+                    target_var=_target_var,
+                    source=source_1d_time,
+                ),
+            },
+            compat='override',
+            join='left',
+            combine_attrs='override',
         )
     del source_1d_time
     logger.debug(
