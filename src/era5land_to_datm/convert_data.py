@@ -428,12 +428,12 @@ def make_target_var(
         The source ERA5 Land Dataset.
     """
     value_arr: xr.DataArray = value_conversion_funcs[target_var](source)
-    new_arr: xr.DataArray = add_target_var_attrs(
+    new_arr = set_target_dims_and_coords(
         arr=value_arr,
         target_var=target_var,
         source=source,
     )
-    new_arr = set_target_dims_and_coords(
+    new_arr: xr.DataArray = add_target_var_attrs(
         arr=new_arr,
         target_var=target_var,
         source=source,
