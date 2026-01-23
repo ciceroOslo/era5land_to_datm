@@ -1,10 +1,10 @@
 [project]
 authors = [{name = "Jan Ivar Korsbakken", email = "janko@cicero.oslo.no"}]
-dependencies = []
+dependencies = ["korsbakken-python-utils[dask] @ git+https://github.com/korsbakken/korsbakken_python_utils.git@v0.5.2?rev_type=tag"]
 name = "era5land_to_datm"
 description = "Tools to download ERA5 Land meteorology files and convert to DATM forcing data for use with NorESM / CTSM"
 requires-python = ">= 3.13"
-version = "0.1.0"
+version = "0.2.0"
 
 [project.urls]
 Repository = "https://github.com/ciceroOslo/era5land_to_datm"
@@ -12,6 +12,9 @@ Repository = "https://github.com/ciceroOslo/era5land_to_datm"
 [build-system]
 build-backend = "hatchling.build"
 requires = ["hatchling"]
+
+[tool.hatch.metadata]
+allow-direct-references = true
 
 [tool.pixi.workspace]
 channels = ["conda-forge"]
@@ -33,6 +36,8 @@ dask = ">=2025.11.0"
 cfgrib = ">=0.9.15.1"
 python = ">=3.13.9"
 pydantic = ">=2.12.5"
+netcdf4 = ">=1.7.3"
+metpy = ">=1.7.1,<2"
 
 [tool.pixi.feature.dev.dependencies]
 ipykernel = "*"

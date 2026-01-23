@@ -38,6 +38,7 @@ import typing as tp
 import pydantic
 import ecmwf.datastores as ecmwfds
 
+from .logger_registry import register_logger
 from .regions import (
     EcmwfArea,
 )
@@ -53,6 +54,7 @@ from .variables import (
 
 
 default_logger: logging.Logger = logging.getLogger(__name__)
+register_logger(default_logger)
 
 ERA5LAND_FOR_DATM_DATASET_ID: tp.Final[EcmwfDatasetId] = (
     EcmwfDatasetId.ERA5LANDHRLY

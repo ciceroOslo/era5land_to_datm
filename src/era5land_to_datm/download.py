@@ -60,6 +60,7 @@ import typing as tp
 
 import ecmwf.datastores as ecmwfds
 
+from .logger_registry import register_logger
 from .remote import (
     CachedClient,
     CachedRemote,
@@ -76,6 +77,7 @@ from .variables import (
 
 
 logger: logging.Logger = logging.getLogger(__name__)
+register_logger(logger)
 
 
 class FilenameFormatCallable(tp.Protocol):
