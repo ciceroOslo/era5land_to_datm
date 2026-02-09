@@ -31,9 +31,46 @@ class YearMonth(tp.NamedTuple):
         The year (e.g., 2020).
     month : int
         The month (1-12).
+
+    Class methods
+    -------------
+    range(start: YearMonth, end: YearMonth) -> Iterable[YearMonth]
+        Generate a sequence of YearMonth instances from start to end, inclusive.
     """
     year: int
     month: int
+
+    @classmethod
+    def range(
+            cls,
+            start: tp.Self,
+            end: tp.Self,
+    ) -> tp.Iterator[tp.Self]:
+        """Generate a sequence of YearMonth instances from start to end, inclusive.
+
+        Parameters
+        ----------
+        start : YearMonth
+            The starting YearMonth (inclusive).
+        end : YearMonth
+            The ending YearMonth (inclusive).
+
+        Yields
+        ------
+        YearMonth
+            An iterator of YearMonth instances from start to end, inclusive.
+        """
+        if (start.year, start.month) > (end.year, end.month):
+            raise ValueError('start must be less than or equal to end')
+        current_year: int = start.year
+        current_month: int = start.month
+        while (current_year, current_month) <= (end.year, end.month):
+            yield cls(year=current_year, month=current_month)
+            if current_month == 12:
+                current_month = 1
+                current_year += 1
+            else:
+                current_month += 1
 ###END class YearMonth
 
 
