@@ -818,6 +818,14 @@ def make_datm_base(
 
     target_ds = xr.Dataset(
         coords={
+            # NB! The time dimension must be the outermost dimension in order
+            # not to cause potentially silent crashes in the PIO library, and
+            # possibly elsewhere in DATM (at least as of January 2026).
+            str(Datm7Coord.TIME): xr.DataArray(
+                data=source[ERA5_LINEARIZED_TIME_DIM].data,
+                dims=(Datm7Dim.TIME.value,),
+                attrs=datm7_var_attrs[Datm7Coord.TIME],
+            ),
             str(Datm7Coord.LAT): xr.DataArray(
                 data=source[Era5LandDim.LAT].data,
                 dims=(Datm7Dim.LAT.value,),
@@ -827,12 +835,6 @@ def make_datm_base(
                 data=source[Era5LandDim.LON].data,
                 dims=(Datm7Dim.LON.value,),
                 attrs=datm7_var_attrs[Datm7Coord.LON],
-            ),
-            # TODO: **NB!** THE ERA5 TIME COORDINATES MUST BE CONVERTED TO `cftime.DatetimeNoLeap`!
-            str(Datm7Coord.TIME): xr.DataArray(
-                data=source[ERA5_LINEARIZED_TIME_DIM].data,
-                dims=(Datm7Dim.TIME.value,),
-                attrs=datm7_var_attrs[Datm7Coord.TIME],
             ),
         },
         attrs={
@@ -844,7 +846,7 @@ def make_datm_base(
     )
 
     # Create the 2-dimensions lat/lon variables LATIXY and LONGXY by
-    # broadcasting (should be cvonstant along the other dimension).
+    # broadcasting (should be constant along the other dimension).
     for _var, _coord in (
             (Datm7Coord.LATIXY, Datm7Coord.LAT),
             (Datm7Coord.LONGXY, Datm7Coord.LON),

@@ -134,6 +134,49 @@ if __name__ == '__main__':
         ),
     )
     parser.add_argument(
+        '--round-lat-to',
+        type=float,
+        default=0.1,
+        help=(
+            'Round latitude values to the nearest multiple of this value. This '
+            'can be useful to avoid issues with very small floating point '
+            'differences in latitude values between the source ERA5 Land files '
+            'and the expected latitude values in the DATM7 files. The '
+            'coordinates in many of the ERA5 Land files are very slightly off '
+            'from multiples of 0.1 degrees, and are therefore by default '
+            'rounded to the nearest multiple of 0.1 degrees to avoid issues '
+            'when comparing or merging with other data. To not round at all, '
+            'set this to 0.'
+        ),
+    )
+    parser.add_argument(
+        '--round-lon-to',
+        type=float,
+        default=0.1,
+        help=(
+            'Round longitude values to the nearest multiple of this value. '
+            'Same as --round-lat-to but for longitude values. To not round at '
+            'all, set this to 0.'
+        ),
+    )
+    parser.add_argument(
+        '--mask-file',
+        type=Path,
+        help=(
+            'Path to a netCDF file containing a mask file. The file should be '
+            'produced using the `create_era5land_to_datm_mask_file.py` script '
+            'and follow the dimension and variable naming from there. Use the '
+            'options `--if-masked-values`, `--if-unmasked-nulls`, '
+            '`--process-umasked-nulls` and `--null-value-files` to specify '
+            'respectively how to report and whether to fail if non-null values '
+            'are found in the masked areas or nulls are found in the unmasked '
+            'areas, whether and how to attempt to fill unmasked null values, '
+            'and to specify file name patterns for netCDF files in which to '
+            'put boolean values that are True whereever unmasked null values '
+            'were found.'
+        ),
+    )
+    parser.add_argument(
         '--log-level',
         type=str,
         default='INFO',
@@ -175,4 +218,6 @@ if __name__ == '__main__':
         output_files=output_files_pattern,
         start_year_month=tuple(args.start_year_month),
         end_year_month=tuple(args.end_year_month),
+        round_lat_to=args.round_lat_to,
+        round_lon_to=args.round_lon_to,
     )
