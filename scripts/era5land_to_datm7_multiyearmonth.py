@@ -237,7 +237,7 @@ if __name__ == '__main__':
         help=(
             'Pattern for file names to save boolean netCDF files in which to '
             'report where unmasked null values were found. The pattern follows '
-            'the same formatting rules as --output-files. Th eoutput files '
+            'the same formatting rules as --source-files. The output files '
             'will contain boolean variables with the same names as the ERA5 '
             'Land variables that were processed, and will have the value True '
             'wherever unmasked null values were found in the original data, '
@@ -295,4 +295,9 @@ if __name__ == '__main__':
         end_year_month=tuple(args.end_year_month),
         round_lat_to=args.round_lat_to,
         round_lon_to=args.round_lon_to,
+        mask_file=args.mask_file,
+        if_masked_values=args.if_masked_values,
+        if_unmasked_nulls=args.if_unmasked_nulls,
+        unmasked_nulls_processing=args.unmasked_nulls_processing,
+        null_value_files=args.null_value_files,
     )

@@ -277,6 +277,11 @@ def convert_monthly_era5_files(
         previous_source_file: Path|str|None = None,
         round_lat_to: float|None = None,
         round_lon_to: float|None = None,
+        mask_file: Path|str|None = None,
+        if_masked_values: MaskedValuesHandling = MaskedValuesHandling.RAISE,
+        if_unmasked_nulls: UnmaskedNullsHandling = UnmaskedNullsHandling.WARN,
+        unmasked_nulls_processing: UnmaskedNullsProcessing = UnmaskedNullsProcessing.NONE,
+        null_value_files: _YearMonthFilepathFunction | str | None = None,
 ) -> None:
     """Converts multiple monthly ERA5 Land GRIB files to DATM7 threestream netCDF files.
 
@@ -335,6 +340,53 @@ def convert_monthly_era5_files(
         If provided, round longitude values to the nearest multiple of this
         value. See `round_lat_to` for details. By default, no rounding is
         applied.
+    mask_file : Path | str, optional
+        Path to a netCDF file containing a land-sea mask for the ERA5 Land grid
+        points. This is used to check for non-null values in the masked areas
+        and null values in the unmasked areas, which may indicate issues with
+        the source data. The mask file should have a boolean variable named
+        `mask` with dimensions `latitude` and `longitude`, where True indicates
+        unmasked points that should have valid data values, and False indicates
+        masked points that should all have null values. The mask file must be
+        on the same grid as the ERA5 Land files, and the latitude and longitude
+        values must match those in the ERA5 Land files after rounding with the
+        `round_lat_to` and `round_lon_to` parameters if specified. The mask file
+        can be created using the `create_era5land_to_datm_mask_file.py` script
+        based on an existing mask or a data file with the same grid as the ERA5
+        Land files and representative values.
+    if_masked_values : MaskedValuesHandling, optional
+        How to handle non-null values found in the masked areas (where the mask
+        is False). By default, MaskedValuesHandling.RAISE, which will raise a
+        ValueError if any non-null values are found in the masked areas. If set
+        to MaskedValuesHandling.WARN, a warning will be logged for each variable
+        that has non-null values in the masked areas, but no error will be
+        raised. If set to MaskedValuesHandling.IGNORE, any non-null values in
+        the masked areas will be ignored and no warnings or errors will be
+        raised.
+    if_unmasked_nulls : UnmaskedNullsHandling, optional
+        How to handle null values found in the unmasked areas (where the mask is
+        True). By default, UnmaskedNullsHandling.WARN, which will log a warning
+        for each variable that has null values in the unmasked areas, but will
+        not raise an error. If set to UnmaskedNullsHandling.RAISE, a ValueError
+        will be raised if any null values are found in the unmasked areas. If set
+        to UnmaskedNullsHandling.IGNORE, any null values in the unmasked areas
+        will be ignored and no warnings or errors will be raised.
+    unmasked_nulls_processing : UnmaskedNullsProcessing, optional
+        If any null values are found in the unmasked areas, this parameter
+        controls whether to attempt to fill these values, and if so, how. By
+        default UnmaskedNullsProcessing.NONE, which means that no filling will
+        be attempted. If set to UnmaskedNullsProcessing.FILL_NEAREST, the null
+        values in the unmasked areas will be filled using nearest-neighbor
+        values from the same variable in the same time step. No other options
+        are currently supported.
+    null_value_files : Callable | None, optional
+        If `unmasked_nulls_processing` is not UnmaskedNullsProcessing.NONE, this
+        parameter must be provided as a function that takes year and month as
+        input and returns a valid file name string, or a format string following
+        the same formatting rules as `source_file`. The output files will
+        contain boolean variables with the same names as the ERA5 Land variables
+        that were processed, and will have the value True wherever unmasked null
+        values were found in the original data, and False elsewhere.
     """
     if isinstance(source_files, str):
         _source_files: str = copy.copy(source_files)
