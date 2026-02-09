@@ -7,6 +7,7 @@ resolve_file_sequences_or_format:
     resolves it to a sequence of file paths, optionally checking for existence
     or non-existence, and/or duplicate values.
 """
+from collections import Counter
 from collections.abc import (
     Callable,
     Iterable,
@@ -21,9 +22,10 @@ import typing as tp
 def resolve_file_paths(
     paths: Sequence[Path] | str | Callable[..., Path],
     *,
+    field_values: Mapping[str, Sequence[tp.Any]] | None = None,
     check_exists: bool = False,
     check_not_exists: bool = False,
-    field_values: Mapping[str, Sequence[tp.Any]] | None = None,
+    check_duplicates: bool = False,
 ) -> list[Path]:
     """
     Resolve file paths from various input formats.
@@ -42,6 +44,10 @@ def resolve_file_paths(
         with missing or unexpected keyword arguments. Any TypeError raised will
         be interepreted as an indication that the keys in `field_values` do not
         match the parameters of the callable, and reported as such.
+    field_values : Mapping[str, Sequence[tp.Any]] | None, optional
+        Keyword arguments containing sequences of values. For format strings,
+        these are used with `.format()`. For callables, these are passed as
+        keyword arguments. All sequences must have the same length.
     check_exists : bool, optional
         If True, verify that all resolved paths exist. Default is False.
     check_not_exists : bool, optional
@@ -49,10 +55,10 @@ def resolve_file_paths(
         No separate errors or warnings are raised if both check_exists and
         check_not_exists are True, and both checks will be performed, but at
         least one of them will of course fail.
-    field_values : Mapping[str, Sequence[tp.Any]] | None, optional
-        Keyword arguments containing sequences of values. For format strings,
-        these are used with `.format()`. For callables, these are passed as
-        keyword arguments. All sequences must have the same length.
+    check_duplicates : bool, optional
+        If True, verify that there are no duplicate paths in the resolved list.
+        A DuplicateFilesError will be raised if any duplicates are found, with a
+        list of the duplicate paths and their counts. Default is False.
 
     Returns
     -------
@@ -61,12 +67,24 @@ def resolve_file_paths(
 
     Raises
     ------
-    ValueError
+    FilesNotFoundError
         If check_exists is True and any path does not exist, or if
         check_not_exists is True and any path exists, or if format_kwargs
-        sequences have different lengths.
+        sequences have different lengths. NB! The raised exception is a
+        FilesNotFoundError, which is a subclass of FileNotFoundError so that it
+        will be caught by any code that catches FileNotFoundError, but it is a
+        custom subclass with custom attributes.
+    FilesAlreadyExistError
+        If check_not_exists is True and any path exists. NB! The raised
+        exception is a FilesAlreadyExistError, which is a subclass of
+        FileExistsError so that it will be caught by any code that catches
+        FileExistsError, but it is a custom subclass with custom attributes.
+    DuplicateFilesError
+        If check_duplicates is True and any duplicate paths are found.
     TypeError
-        If paths is a format string or callable but no format_kwargs are provided.
+        If paths is a format string or callable but `field_values` is not
+        provided, or if the field names or keyword arguments expected by `paths`
+        do not match the keys in `field_values`.
 
     Examples
     --------
@@ -150,17 +168,6 @@ def resolve_file_paths(
         paths_func(**{_key: _seq[i] for _key, _seq in field_values.items()})
         for i in range(n_paths)
     ]
-    # for i in range(n_paths):
-    #     kwargs: dict[str, any] = {key: seq[i] for key, seq in format_kwargs.items()}
-
-    #     if callable(paths):
-    #         # Case 3: Callable
-    #         path: Path = paths(**kwargs)
-    #     else:
-    #         # Case 2: Format string
-    #         path: Path = Path(paths.format(**kwargs))
-
-    #     resolved_paths.append(path)
 
     # Perform optional checks
     if check_exists and not all(p.exists() for p in resolved_paths):
@@ -174,6 +181,14 @@ def resolve_file_paths(
             _path for _path in resolved_paths if _path.exists()
         )
         raise FilesAlreadyExistError(existing_files=sorted(existing))
+
+    if check_duplicates:
+        path_counts: Counter[Path] = Counter(resolved_paths)
+        duplicate_counts: dict[Path, int] = {
+            _path: _count for _path, _count in path_counts.items() if _count > 1
+        }
+        if len(duplicate_counts) > 0:
+            raise DuplicateFilesError(file_counts=duplicate_counts)
 
     return resolved_paths
 
@@ -246,3 +261,82 @@ class FilesAlreadyExistError(FileExistsError):
     ###END def __init__
 
 ###END class FilesAlreadyExistError
+
+
+class DuplicateFilesError(ValueError):
+    """Custom error to indicate that duplicate file paths were found
+
+    Attributes
+    ----------
+    duplicate_files : list[Path]
+        List of file paths that were duplicated. If `file_counts` was passed to
+        the constructor, this will be a list of all keys in that mapping that
+        had a count greater than 1.
+    file_counts : dict[Path, int] | None
+        Optional dictionary mapping file paths to their counts in the input.
+        This will be equal to a dictionary copied from the `file_counts`
+        parameter in the constructor if it was provided, and None otherwise.
+    """
+
+    def __init__(
+            self,
+            *args,
+            duplicate_files: Sequence[Path] | None = None,
+            file_counts: Mapping[Path, int] | None = None,
+            **kwargs
+    ) -> None:
+        """
+        Parameters
+        ----------
+        *args
+            Positional arguments to pass to the base ValueError.
+        duplicate_files : Sequence[Path] | None, optional
+            List of file paths that were duplicated. At least one of
+            `duplicate_files` and `file_counts` must be provided. If
+            `file_counts` is provided and is not None, then `duplicate_files`
+            will be ignored, and the `duplicate_files` attribute will be set to
+            a list of the keys in `file_counts` that had a count greater than 1.
+        file_counts : Mapping[Path, int] | None, optional
+            Dictionary mapping file paths to their counts in the input. At least
+            one of `duplicate_files` and `file_counts` must be provided.
+            `file_counts` overrides `duplicate_files` if both are provided.
+        **kwargs
+            Keyword arguments to pass to the base ValueError.
+        """
+        if duplicate_files is None:
+            if file_counts is None:
+                raise ValueError(
+                    'At least one of duplicate_files and file_counts must be provided'
+                )
+            else:
+                duplicate_files = [
+                    _file for _file, _count in file_counts.items() if _count > 1
+                ]
+        if len(args) == 0:
+            if file_counts is not None:
+                counts_str = '\n'.join(
+                    f'- {_file}: {_count}'
+                    for _file, _count in file_counts.items() if _count > 1
+                )
+                args = (
+                    (
+                        f'The following files were duplicated, with counts:\n'
+                        + counts_str
+                    ),
+                )
+            else:
+                args = (
+                    (
+                        f'The following files were duplicated:\n'
+                        + '\n'.join(f'- {_file}' for _file in duplicate_files)
+                    ),
+                )
+        super().__init__(*args, **kwargs)
+        self.duplicate_files: tp.Final[list[Path]] = list(duplicate_files)
+        self.file_counts: tp.Final[dict[Path, int] | None] = (
+            dict(file_counts) if file_counts is not None else None
+        )
+    ###END def __init__
+
+###END class DuplicateFilesError
+
