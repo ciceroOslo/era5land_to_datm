@@ -167,13 +167,88 @@ if __name__ == '__main__':
             'produced using the `create_era5land_to_datm_mask_file.py` script '
             'and follow the dimension and variable naming from there. Use the '
             'options `--if-masked-values`, `--if-unmasked-nulls`, '
-            '`--process-umasked-nulls` and `--null-value-files` to specify '
+            '`--unmaked_nulls_processing` and `--null-value-files` to specify '
             'respectively how to report and whether to fail if non-null values '
             'are found in the masked areas or nulls are found in the unmasked '
             'areas, whether and how to attempt to fill unmasked null values, '
             'and to specify file name patterns for netCDF files in which to '
             'put boolean values that are True whereever unmasked null values '
             'were found.'
+        ),
+    )
+    parser.add_argument(
+        '--if-masked-values',
+        type=MaskedValuesHandling,
+        default=MaskedValuesHandling.FAIL.value,
+        choices=[_s.value for _s in MaskedValuesHandling],
+        help=(
+            'How to handle non-null values found in the masked-out area '
+            'defined by the mask file provided with --mask-file. Options are:\n'
+            f'- {MaskedValuesHandling.FAIL.value}:\n'
+            '    Raise an error if any non-null values are found in the masked '
+            'area.\n'
+            f'- {MaskedValuesHandling.WARN.value}:\n'
+            '    Log a warning if any non-null values are found in the masked '
+            'area, but do not raise an error.\n'
+            f'- {MaskedValuesHandling.IGNORE.value}:\n'
+            '    Ignore any non-null values found in the masked area and do not '
+            'raise an error or log a warning.'
+        ),
+    )
+    parser.add_argument(
+        '--if-unmasked-nulls',
+        type=UnmaskedNullsHandling,
+        default=UnmaskedNullsHandling.WARN.value,
+        choices=[_s.value for _s in UnmaskedNullsHandling],
+        help=(
+            'How to handle null values found in the unmasked area defined by '
+            'the mask file provided with --mask-file. Options are:\n'
+            f'- {UnmaskedNullsHandling.FAIL.value}:\n'
+            '    Raise an error if any null values are found in the unmasked '
+            'area.\n'
+            f'- {UnmaskedNullsHandling.WARN.value}:\n'
+            '    Log a warning if any null values are found in the unmasked '
+            'area, but do not raise an error.\n'
+            f'- {UnmaskedNullsHandling.IGNORE.value}:\n'
+            '    Ignore any null values found in the unmasked area and do not '
+            'raise an error or log a warning.'
+        ),
+    )
+    parser.add_argument(
+        '--unmasked-nulls-processing',
+        type=UnmaskedNullsProcessing,
+        default=UnmaskedNullsProcessing.FILL_NEAREST.value,
+        choices=[_s.value for _s in UnmaskedNullsProcessing],
+        help=(
+            'Whether and how to attempt to fill null values found in the '
+            'unmasked area defined by the mask file provided with --mask-file. '
+            'Options are:\n'
+            f'- {UnmaskedNullsProcessing.FILL_NEAREST.value}:\n'
+            '    Attempt to fill null values in the unmasked area by filling '
+            'them with the nearest non-null value in the same variable. This '
+            'is the default option.\n'
+            f'- {UnmaskedNullsProcessing.NONE.value}:\n'
+            '    Leave null values in the unmasked area as they are.'
+        ),
+    )
+    parser.add_argument(
+        '--null-value-files',
+        type=str,
+        help=(
+            'Pattern for file names to save boolean netCDF files in which to '
+            'report where unmasked null values were found. The pattern follows '
+            'the same formatting rules as --output-files. Th eoutput files '
+            'will contain boolean variables with the same names as the ERA5 '
+            'Land variables that were processed, and will have the value True '
+            'wherever unmasked null values were found in the original data, '
+            'and False elsewhere. If not provided, or if the pattern is an '
+            'empty string, these files will not be saved. This option is '
+            'independent of the --if-unmasked-nulls option, but if that '
+            f'option is set to {UnmaskedNullsHandling.FAIL.value}, the script '
+            'will raise an error and not save any more files once the first '
+            'unmasked null value is encountered. To get a report of all '
+            'unmasked null values, that option must be set to either warn or '
+            'ignore.'
         ),
     )
     parser.add_argument(
