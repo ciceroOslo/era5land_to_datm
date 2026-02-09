@@ -36,6 +36,7 @@ from .convert_data import make_datm_ds
 from .datm_streams import Datm7Stream
 from .dimensions import (
     Datm7Dim,
+    Era5LandDim,
 )
 from .file_io import (
     open_era5land_grib,
@@ -63,6 +64,8 @@ def convert_era5_file(
         keep_first_last_dates: bool = False,
         eager: bool = True,
         disable_dask: bool = False,
+        round_lat_to: float|None = None,
+        round_lon_to: float|None = None,
 ) -> None:
     """Converts an ERA5 Land GRIB file to a DAMT7 threestream netCDF file.
 
@@ -106,6 +109,18 @@ def convert_era5_file(
         order to ensure that the output files only contain data for a single
         calendar month, and don\'t introduce overlaps in the file streams. Set
         this flag to keep these dates in the output.
+    round_lat_to : float | None, optional
+        If provided, round latitude values to the nearest multiple of this
+        value. This can be useful to ensure that the latitude values in the
+        output files are exactly the same as the expected latitude values in the
+        DATM7 files, which are multiples of 0.1 degrees. The coordinates in many
+        of the ERA5 Land files are very slightly off from multiples of 0.1
+        degrees, and this can lead to issues when comparing or merging with
+        other data. By default, no rounding is applied.
+    round_lon_to : float | None, optional
+        If provided, round longitude values to the nearest multiple of this
+        value. See `round_lat_to` for details. By default, no rounding is
+        applied.
     eager : bool, optional
         Whether to load the entire dataset into memory before processing. This
         can significantly speed up some operations, while setting it to False
@@ -125,6 +140,16 @@ def convert_era5_file(
         )
         if len(get_registered_progress_bars()) == 0:
             set_global_progress_bar()
+    if any(
+        _round_to is not None and (
+            not isinstance(_round_to, (int, float))
+            or _round_to <= 0
+        ) for _round_to in (round_lat_to, round_lon_to)
+    ):
+        raise ValueError(
+            '`round_lat_to` and `round_lon_to` must be positive, non-zero '
+            'numbers if provided.'
+        )
     source_file = Path(source_file)
     output_streams = [Datm7Stream(_s) for _s in output_streams]
     output_files_mapping: dict[Datm7Stream, Path]
@@ -163,6 +188,27 @@ def convert_era5_file(
         previous_file=previous_source_file,
         chunks='auto' if not disable_dask else None,
     )
+    logger.info('Finished opening ERA5 Land GRIB files.')
+    latlon_rounding_map: dict[Era5LandDim, float] = {
+        _dim: _round_to
+        for _dim, _round_to in zip(
+            (Era5LandDim.LAT, Era5LandDim.LON),
+            (round_lat_to, round_lon_to),
+        )
+        if _round_to is not None
+    }
+    if len(latlon_rounding_map) > 0:
+        logger.info(
+            'Rounding latitude and longitude values to nearest:\n'
+            '    ' + ',  '.join(
+                f'{_dim}: {_round_to}'
+                for _dim, _round_to in latlon_rounding_map.items()
+            )
+        )
+        source_ds = round_coords(
+            source_ds,
+            rounding_map=latlon_rounding_map,
+        )
     if eager:
         logger.info('Loading dataset into memory...')
         if not disable_dask:
@@ -229,6 +275,8 @@ def convert_monthly_era5_files(
         end_year_month: tuple[int, int] | None = None,
         next_source_file: Path|str|None = None,
         previous_source_file: Path|str|None = None,
+        round_lat_to: float|None = None,
+        round_lon_to: float|None = None,
 ) -> None:
     """Converts multiple monthly ERA5 Land GRIB files to DATM7 threestream netCDF files.
 
@@ -275,6 +323,18 @@ def convert_monthly_era5_files(
         Path to the ERA5 Land GRIB file for the month before `start_year_month`.
         This is optional, but some variables may have missing data in the first
         time step in the first output file if this is not provided.
+    round_lat_to : float, optional
+        If provided, round latitude values to the nearest multiple of this
+        value. This can be useful to ensure that the latitude values in the
+        output files are exactly the same as the expected latitude values in the
+        DATM7 files, which are multiples of 0.1 degrees. The coordinates in many
+        of the ERA5 Land files are very slightly off from multiples of 0.1
+        degrees, and this can lead to issues when comparing or merging with
+        other data. By default, no rounding is applied.
+    round_lon_to : float, optional
+        If provided, round longitude values to the nearest multiple of this
+        value. See `round_lat_to` for details. By default, no rounding is
+        applied.
     """
     if isinstance(source_files, str):
         _source_files: str = copy.copy(source_files)
@@ -455,5 +515,7 @@ def convert_monthly_era5_files(
             previous_source_file=_previous_source,
             output_streams=list(_output_mapping.keys()),
             output_files=_output_mapping,
+            round_lat_to=round_lat_to,
+            round_lon_to=round_lon_to,
         )
 ###END def convert_monthly_era5_files
