@@ -10,8 +10,18 @@ UnmaskedNullsHandling
     (i.e., in a region that is not masked out and is intended to be used).
 UnmaskedNullsProcessing
     Enum for how to process null values in an unmasked region, if any are found.
+Era5LandToDatmMaskFileDim
+    String enum for dimension ids the mask file used in the `convert_files` and
+    `convert_data` modules.
+
+Attributes
+----------
+ERA5_LAND_TO_DATM_MASK_VAR : Final[str]
+    The variable name in the mask file used in the `convert_files` and
+    `convert_data` modules that contains the mask.
 """
 import enum
+import typing as tp
 
 
 
@@ -69,3 +79,21 @@ class UnmaskedNullsProcessing(enum.Enum):
     NONE = 'none'
     FILL_NEAREST = 'fill_nearest'
 ###END class UnmaskedNullsProcessing
+
+
+class Era5LandToDatmMaskFileDim(enum.StrEnum):
+    """String enum for dimension ids the mask file used in the `convert_files`
+    and `convert_data` modules.
+
+    Members
+    -------
+    LAT
+        Latitude dimension id.
+    LON
+        Longitude dimension id.
+    """
+    LAT = 'latitude'
+    LON = 'longitude'
+###END class Era5LandToDatmMaskFileDim
+
+ERA5_LAND_TO_DATM_MASK_VAR: tp.Final[str] = 'mask'

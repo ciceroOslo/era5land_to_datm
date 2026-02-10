@@ -28,6 +28,8 @@ import itertools
 import logging
 from pathlib import Path
 import typing as tp
+from typing import NamedTuple
+import warnings
 
 from korsbakken_python_utils.containers.dataobject import UniformTypeDataObject
 import numpy as np
@@ -37,7 +39,9 @@ from .convert_data import make_datm_ds
 from .datm_streams import Datm7Stream
 from .dimensions import (
     Datm7Dim,
+    ERA5_LINEARIZED_TIME_DIM,
     Era5LandDim,
+    ERA5LandTimeLayout,
 )
 from .file_io import (
     open_era5land_grib,
@@ -51,6 +55,8 @@ from .file_name_parsing import (
 )
 from .logger_registry import register_logger
 from .masking import (
+    ERA5_LAND_TO_DATM_MASK_VAR,
+    Era5LandToDatmMaskFileDim,
     MaskedValuesHandling,
     UnmaskedNullsHandling,
     UnmaskedNullsProcessing,
@@ -315,11 +321,17 @@ def convert_era5_file(
             )
         unmasked_null_ds: xr.Dataset | None
         masked_nonnull_ds: xr.Dataset | None
-        source_ds, unmasked_null_ds, masked_nonnull_ds = process_unmasked_nulls(
+        source_ds = process_mask_and_nulls(
             source=source_ds,
             mask=mask_ds,
-            
-        )
+            if_masked_values=if_masked_values,
+            if_unmasked_nulls=if_unmasked_nulls,
+            unmasked_nulls_processing=unmasked_nulls_processing,
+            null_value_file=null_value_file,
+            source_files=(source_file,),
+        ).filled_ds  # Should return a namedtuple with processed dataset (filled
+                     # nulls) as one of the fields, and we only need to keep
+                     # that here.
 
     logger.info('Converting and writing output DATM7 netCDF files...')
     for _target_stream in output_streams:
@@ -807,3 +819,358 @@ def convert_monthly_era5_files(
             null_value_file=_null_value_file,
         )
 ###END def convert_monthly_era5_files
+
+
+class ProcessMaskAndNullsResult(NamedTuple):
+    """Named tuple for the result of process_mask_and_nulls.
+
+    This class is a subclass of NamedTuple. The fields below are listed in the
+    order they appear in the tuple.
+
+    Fields
+    ------
+    filled_ds : xr.Dataset
+        The dataset resulting from processing unmasked null values in the source
+        Dataset passed to `process_mask_and_nulls`.
+    unmasked_null_ds : xr.Dataset | None
+        If `if_unmasked_nulls` is not UnmaskedNullsHandling.IGNORE or if
+        `null_value_file` is not None, this will be a Dataset with boolean
+        values indicating the locations of unmasked null values in the original
+        source dataset, with the same variable names and dimensions as the
+        original source dataset. If `if_unmasked_nulls` is
+        UnmaskedNullsHandling.IGNORE, this will be None.
+    masked_nonnull_ds : xr.Dataset | None
+        If `if_masked_values` is not MaskedValuesHandling.IGNORE, this will be a
+        Dataset with boolean values indicating the locations of non-null values
+        in the masked areas in the original source dataset, with the same
+        variable names and dimensions as the original source dataset. If
+        `if_masked_values` is MaskedValuesHandling.IGNORE, this will be None.
+    """
+    filled_ds: xr.Dataset
+    unmasked_null_ds: xr.Dataset | None
+    masked_nonnull_ds: xr.Dataset | None
+###END class ProcessMaskAndNullsResult
+
+
+def process_mask_and_nulls(
+        *,
+        source: xr.Dataset,
+        mask: xr.Dataset,
+        if_masked_values: MaskedValuesHandling,
+        if_unmasked_nulls: UnmaskedNullsHandling,
+        unmasked_nulls_processing: UnmaskedNullsProcessing,
+        null_value_file: Path|str|None,
+        source_files: Sequence[Path|str] | None = None,
+        source_time_layout: ERA5LandTimeLayout = ERA5LandTimeLayout.DATE_STEP,
+) -> ProcessMaskAndNullsResult:
+    """Checks for masked non-null and unmasked null values in the source dataset
+    and optionally fills unmasked null values.
+
+    This function performs the mask and null-value related checks and processing
+    for the `convert_era5_file` and `convert_monthly_era5_files` functions.
+
+    Parameters
+    ----------
+    source : xr.Dataset
+        The source dataset to check and process. This should be the dataset
+        opened from the ERA5 Land GRIB file, after any coordinate rounding has
+        been applied.
+    mask : xr.Dataset
+        The mask dataset. See the `mask_file` parameter in `convert_era5_file`
+        for details.
+    if_masked_values : MaskedValuesHandling
+        How to handle non-null values found in the masked areas. See the
+        `if_masked_values` parameter in `convert_era5_file` for details.
+    if_unmasked_nulls : UnmaskedNullsHandling
+        How to handle null values found in the unmasked areas. See the
+        `if_unmasked_nulls` parameter in `convert_era5_file` for details.
+    unmasked_nulls_processing : UnmaskedNullsProcessing
+        If any null values are found in the unmasked areas, this parameter
+        controls whether to attempt to fill these values, and if so, how. See
+        the `unmasked_nulls_processing` parameter in `convert_era5_file` for
+        details.
+    null_value_file : Path | str | None
+        Files in which to save the locations of unmasked null values in the
+        source file. See the `null_value_file` parameter in `convert_era5_file`
+        for details.
+    source_files : Sequence[Path|str] | None, optional
+        If provided, this should be a sequence of file paths to the source files
+        being processed. This is only used for logging and error messages, to
+        provide more context to the user about which file is being processed and
+        which files have issues with masked non-null or unmasked null values. If
+        not provided, the log messages will not include file-specific context.
+    source_time_layout : ERA5LandTimeLayout, optional
+        The time layout of the source dataset. This is needed to correctly
+        handle the time dimension when checking for masked non-null and unmasked
+        null values, and when filling unmasked null values if requested. By
+        default, ERA5LandTimeLayout.DATE_STEP, which means that the time
+        dimension in the source dataset is expected to be in the format of a
+        date dimension (e.g. 'time') and a step dimension (e.g. 'step') that
+        indicates the time offset from the date. If set to
+        ERA5LandTimeLayout.LINEAR, the time dimension is expected to be a single
+        linearized time dimension (e.g. 'time') that combines the date and step
+        information. If called from the `convert_era5_file` function, the file
+        will usually be in `DATE_STEP` layout (the default) and will later be
+        linearized in the `make_datm_ds` function.
+
+    Returns
+    -------
+    ProcessMaskAndNullsResult
+        A NamedTuple object with the results. See the documentation of
+        `ProcessMaskAndNullsResult` for information about the fields.
+    """
+    coord_tolerance: float = 1e-15  # Tolerance for coordinate alignment between source and mask datasets, in coordinate units (degrees).
+    return_unmasked_null_ds: xr.Dataset | None
+    return_masked_nonnull_ds: xr.Dataset | None
+    if_masked_values = MaskedValuesHandling(if_masked_values)
+    if_unmasked_nulls = UnmaskedNullsHandling(if_unmasked_nulls)
+    unmasked_nulls_processing = (
+        UnmaskedNullsProcessing(unmasked_nulls_processing)
+    )
+    logger.info(
+        msg = (
+            'Processing mask and null values for source files: '
+            + (
+                ', '.join(str(_f) for _f in source_files)
+                if source_files is not None
+                else 'N/A (source file names not provided)'
+            )
+        ),
+        extra={
+            'source_files': source_files,
+        }
+    )
+    # Shortcut the processing if the parameters are trivial
+    if (
+            if_masked_values == MaskedValuesHandling.IGNORE
+            and if_unmasked_nulls == UnmaskedNullsHandling.IGNORE
+            and unmasked_nulls_processing == UnmaskedNullsProcessing.NONE
+            and null_value_file is None
+    ):
+        return ProcessMaskAndNullsResult(
+            filled_ds=source,
+            unmasked_null_ds=None,
+            masked_nonnull_ds=None,
+        )
+    # Check that the mask dataset has the expected structure and dimensions
+    if ERA5_LAND_TO_DATM_MASK_VAR not in mask.variables:
+        raise KeyError(
+            f'The mask dataset does not contain the expected mask variable '
+            f'"{ERA5_LAND_TO_DATM_MASK_VAR}".'
+        )
+    if set(mask[ERA5_LAND_TO_DATM_MASK_VAR].dims) != {
+            Era5LandToDatmMaskFileDim.LAT,
+            Era5LandToDatmMaskFileDim.LON,
+    }:
+        raise ValueError(
+            f'The mask variable "{ERA5_LAND_TO_DATM_MASK_VAR}" in the mask '
+            f'dataset does not have the expected dimensions '
+            f'"{Era5LandToDatmMaskFileDim.LAT}" and '
+            f'"{Era5LandToDatmMaskFileDim.LON}". Found dimensions: '
+            f'{mask[ERA5_LAND_TO_DATM_MASK_VAR].dims}.'
+        )
+    # Crop the mask to the source dataset. Raise an error if the result contains
+    # any NaN values, which indicates that the source dataset region is not
+    # fully contained within the mask region. At the same time, rename the mask
+    # dimensions to match the source dataset.
+    try:
+        mask_aligned: xr.DataArray = mask[ERA5_LAND_TO_DATM_MASK_VAR].rename(
+            {
+                Era5LandToDatmMaskFileDim.LAT: Era5LandDim.LAT,
+                Era5LandToDatmMaskFileDim.LON: Era5LandDim.LON,
+            }
+        ).sel(
+            {
+                Era5LandDim.LAT: source[Era5LandDim.LAT],
+                Era5LandDim.LON: source[Era5LandDim.LON],
+            },
+            method='nearest',
+            tolerance=coord_tolerance,
+        )
+    except KeyError as _key_err:
+        error_msg = (
+            'Could not align the mask dataset with the source dataset. Most'
+            'likely, the source data is not fully contained within the region '
+            'covered by the mask data. Please check the coordinates in the '
+            'mask file against the source data file.'
+        )
+        logger.error(
+            msg=error_msg,
+            exc_info=_key_err,
+            extra={
+                'source_lat_range': (
+                    float(source[Era5LandDim.LAT].min().item()),
+                    float(source[Era5LandDim.LAT].max().item()),
+                ),
+                'source_lon_range': (
+                    float(source[Era5LandDim.LON].min().item()),
+                    float(source[Era5LandDim.LON].max().item()),
+                ),
+                'mask_lat_range': (
+                    float(mask[Era5LandToDatmMaskFileDim.LAT].min().item()),
+                    float(mask[Era5LandToDatmMaskFileDim.LAT].max().item()),
+                ),
+                'mask_lon_range': (
+                    float(mask[Era5LandToDatmMaskFileDim.LON].min().item()),
+                    float(mask[Era5LandToDatmMaskFileDim.LON].max().item()),
+                ),
+                'source_files': source_files,
+            }
+        )
+        raise KeyError(error_msg) from _key_err
+    try:
+        mask_aligned = mask_aligned.astype(bool)
+    except ValueError as _value_err:
+        error_msg = (
+            f'The mask variable "{ERA5_LAND_TO_DATM_MASK_VAR}" could not be '
+            f'converted to boolean values. Please check the values in the mask '
+            f'file and ensure that they can be interpreted as boolean (e.g. 0 '
+            f'and 1, or True and False).'
+        )
+        logger.error(
+            msg=error_msg,
+            exc_info=_value_err,
+            extra={
+                'source_files': source_files,
+            }
+        )
+        raise ValueError(error_msg) from _value_err
+
+    # Check for non-null values in the masked areas if needed
+    if if_masked_values != MaskedValuesHandling.IGNORE:
+        logger.info('Checking for non-null values in masked areas...')
+        masked_nonull_ds: xr.Dataset = (
+            source
+            .where(~mask_aligned)  # Set to null wherever unmasked
+            .notnull()  # Set all non-null values (now only in masked areas) to True.
+        )
+        masked_nonnull_vars: list[str] = []
+        for _var in masked_nonull_ds.data_vars:
+            logger.debug(
+                f'Checking variable "{_var}" for non-null values in masked '
+                'areas...'
+            )
+            if masked_nonull_ds[_var].any().compute().item():
+                masked_nonnull_vars.append(str(_var))
+        if len(masked_nonnull_vars) > 0:
+            masked_nonnull_msg: str = (
+                f'Found non-null values in masked areas for variables: '
+                + ', '.join(masked_nonnull_vars)
+            )
+            if if_masked_values == MaskedValuesHandling.RAISE:
+                logger.error(
+                    msg=masked_nonnull_msg,
+                    extra={
+                        'masked_nonnull_vars': masked_nonnull_vars,
+                        'source_files': source_files,
+                    },
+                )
+                raise ValueError(masked_nonnull_msg)
+            elif if_masked_values == MaskedValuesHandling.WARN:
+                logger.warning(
+                    msg=masked_nonnull_msg,
+                    extra={
+                        'masked_nonnull_vars': masked_nonnull_vars,
+                        'source_files': source_files,
+                    },
+                )
+                warnings.warn(masked_nonnull_msg)
+            else:
+                error_msg: str = (
+                    'Invalid value for `if_masked_values`: '
+                    f'{if_masked_values!r}. This should have been caught by '
+                    'the MaskedValuesHandling enum, so this indicates a bug.'
+                )
+                logger.error(
+                    msg=error_msg,
+                    extra={
+                        'source_files': source_files,
+                    },
+                )
+                raise RuntimeError(error_msg)
+        else:
+            logger.info('No non-null values found in masked areas.')
+        return_masked_nonnull_ds = masked_nonull_ds
+    else:
+        logger.debug('Skipping check for non-null values in masked areas.')
+        return_masked_nonnull_ds = None
+
+    # Check for null values in the unmasked areas if needed, and fill if
+    # requested.
+    if (
+            if_unmasked_nulls != UnmaskedNullsHandling.IGNORE
+            or unmasked_nulls_processing != UnmaskedNullsProcessing.NONE
+            or null_value_file is not None
+    ):
+        logger.info('Checking for null values in unmasked areas...')
+        unmasked_null_ds: xr.Dataset = (
+            source
+            .where(mask_aligned)  # Set to null wherever masked
+            .isnull()  # Set all null values (now only in unmasked areas) to True.
+        )
+        unmasked_null_vars: list[str] = []
+        for _var in unmasked_null_ds.data_vars:
+            logger.debug(
+                f'Checking variable "{_var}" for null values in unmasked '
+                'areas...'
+            )
+            if unmasked_null_ds[_var].any().compute().item():
+                unmasked_null_vars.append(str(_var))
+        if len(unmasked_null_vars) > 0:
+            unmasked_null_msg: str = (
+                f'Found null values in unmasked areas for variables: '
+                + ', '.join(unmasked_null_vars)
+            )
+            if if_unmasked_nulls == UnmaskedNullsHandling.RAISE:
+                logger.error(
+                    msg=unmasked_null_msg,
+                    extra={
+                        'unmasked_null_vars': unmasked_null_vars,
+                        'source_files': source_files,
+                    },
+                )
+                raise ValueError(unmasked_null_msg)
+            elif if_unmasked_nulls == UnmaskedNullsHandling.WARN:
+                logger.warning(
+                    msg=unmasked_null_msg,
+                    extra={
+                        'unmasked_null_vars': unmasked_null_vars,
+                        'source_files': source_files,
+                    },
+                )
+                warnings.warn(unmasked_null_msg)
+            elif if_unmasked_nulls == UnmaskedNullsHandling.IGNORE:
+                pass
+            else:
+                error_msg: str = (
+                    'Invalid value for `if_unmasked_nulls`: '
+                    f'{if_unmasked_nulls!r}. This should have been caught by '
+                    'the UnmaskedNullsHandling enum, so this indicates a bug.'
+                )
+                logger.error(
+                    msg=error_msg,
+                    extra={
+                        'source_files': source_files,
+                    },
+                )
+                raise RuntimeError(error_msg)
+        else:
+            logger.info('No null values found in unmasked areas.')
+        return_unmasked_null_ds = unmasked_null_ds
+        source = process_unmasked_nulls(
+            source=source,
+            unmasked_null_ds=unmasked_null_ds,
+            processing_method=unmasked_nulls_processing,
+            time_layout=source_time_layout,
+        )
+    else:
+        logger.debug('Skipping check for null values in unmasked areas.')
+        return_unmasked_null_ds = None
+
+    return ProcessMaskAndNullsResult(
+        filled_ds=source,
+        unmasked_null_ds=return_unmasked_null_ds,
+        masked_nonnull_ds=return_masked_nonnull_ds,
+    )
+
+### END def process_mask_and_nulls
