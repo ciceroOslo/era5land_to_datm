@@ -75,10 +75,16 @@ def convert_era5_file(
             | None
         ) = None,
         keep_first_last_dates: bool = False,
-        eager: bool = True,
-        disable_dask: bool = False,
         round_lat_to: float|None = None,
         round_lon_to: float|None = None,
+        mask_file: Path|str|None = None,
+        if_masked_values: MaskedValuesHandling = MaskedValuesHandling.RAISE,
+        if_unmasked_nulls: UnmaskedNullsHandling = UnmaskedNullsHandling.WARN,
+        unmasked_nulls_processing: UnmaskedNullsProcessing = \
+            UnmaskedNullsProcessing.NONE,
+        null_value_file: Path|str|None = None,
+        eager: bool = True,
+        disable_dask: bool = False,
 ) -> None:
     """Converts an ERA5 Land GRIB file to a DAMT7 threestream netCDF file.
 
@@ -134,6 +140,32 @@ def convert_era5_file(
         If provided, round longitude values to the nearest multiple of this
         value. See `round_lat_to` for details. By default, no rounding is
         applied.
+    mask_file : Path | str, optional
+        Path to a netCDF file containing a mask for the ERA5 Land grid points.
+        See the documentation for the `mask_file` parameter in the
+        `convert_monthly_era5_files` function for details.
+    if_masked_values : MaskedValuesHandling, optional
+        How to handle non-null values found in the masked areas. See the
+        documentation for the `if_masked_values` parameter in the
+        `convert_monthly_era5_files` function for details.
+    if_unmasked_nulls : UnmaskedNullsHandling, optional
+        How to handle null values found in the unmasked areas. See the
+        documentation for the `if_unmasked_nulls` parameter in the
+        `convert_monthly_era5_files` function for details.
+    unmasked_nulls_processing : UnmaskedNullsProcessing, optional
+        How to process null values found in the unmasked areas. See the
+        documentation for the `unmasked_nulls_processing` parameter in the
+        `convert_monthly_era5_files` function for details.
+    null_value_file : Path | str, optional
+        File in which to save the locations of unmasked null values. The output
+        file will contain boolean variables with the same names as the ERA5 Land
+        variables that were processed, and will have the value True wherever
+        unmasked null values were found in the original data, and False
+        elsewhere. This parameter is ignored if `mask_file` is not provided. It
+        *is* used if `if_unmasked_nulls` is set to UnmaskedNullsHandling.IGNORE
+        and if `unmasked_nulls_processing` is not UnmaskedNullsProcessing.NONE.
+        Those parameters control logging/reporting and filling of unmasked null
+        values, not whether to output a file with null value points.
     eager : bool, optional
         Whether to load the entire dataset into memory before processing. This
         can significantly speed up some operations, while setting it to False
@@ -354,15 +386,15 @@ def convert_monthly_era5_files(
         value. See `round_lat_to` for details. By default, no rounding is
         applied.
     mask_file : Path | str, optional
-        Path to a netCDF file containing a land-sea mask for the ERA5 Land grid
-        points. This is used to check for non-null values in the masked areas
-        and null values in the unmasked areas, which may indicate issues with
-        the source data. The mask file should have a boolean variable named
-        `mask` with dimensions `latitude` and `longitude`, where True indicates
-        unmasked points that should have valid data values, and False indicates
-        masked points that should all have null values. The mask file must be
-        on the same grid as the ERA5 Land files, and the latitude and longitude
-        values must match those in the ERA5 Land files after rounding with the
+        Path to a netCDF file containing a mask for the ERA5 Land grid points.
+        This is used to check for non-null values in the masked areas and null
+        values in the unmasked areas, which may indicate issues with the source
+        data. The mask file should have a boolean variable named `mask` with
+        dimensions `latitude` and `longitude`, where True indicates unmasked
+        points that should have valid data values, and False indicates masked
+        points that should all have null values. The mask file must be on the
+        same grid as the ERA5 Land files, and the latitude and longitude values
+        must match those in the ERA5 Land files after rounding with the
         `round_lat_to` and `round_lon_to` parameters if specified. The mask file
         can be created using the `create_era5land_to_datm_mask_file.py` script
         based on an existing mask or a data file with the same grid as the ERA5
@@ -375,7 +407,7 @@ def convert_monthly_era5_files(
         that has non-null values in the masked areas, but no error will be
         raised. If set to MaskedValuesHandling.IGNORE, any non-null values in
         the masked areas will be ignored and no warnings or errors will be
-        raised.
+        raised. This parameter is ignored if `mask_file` is not provided.
     if_unmasked_nulls : UnmaskedNullsHandling, optional
         How to handle null values found in the unmasked areas (where the mask is
         True). By default, UnmaskedNullsHandling.WARN, which will log a warning
@@ -383,7 +415,8 @@ def convert_monthly_era5_files(
         not raise an error. If set to UnmaskedNullsHandling.RAISE, a ValueError
         will be raised if any null values are found in the unmasked areas. If set
         to UnmaskedNullsHandling.IGNORE, any null values in the unmasked areas
-        will be ignored and no warnings or errors will be raised.
+        will be ignored and no warnings or errors will be raised. This parameter
+        is ignored if `mask_file` is not provided.
     unmasked_nulls_processing : UnmaskedNullsProcessing, optional
         If any null values are found in the unmasked areas, this parameter
         controls whether to attempt to fill these values, and if so, how. By
@@ -391,15 +424,24 @@ def convert_monthly_era5_files(
         be attempted. If set to UnmaskedNullsProcessing.FILL_NEAREST, the null
         values in the unmasked areas will be filled using nearest-neighbor
         values from the same variable in the same time step. No other options
-        are currently supported.
+        are currently supported. This parameter is ignored if `mask_file` is not
+        provided. It *is* used if `if_unmasked_nulls` is set to
+        UnmaskedNullsHandling.IGNORE, since that option only controls whether to
+        log and report the presence of unmasked nulls to the user.
     null_value_files : Callable | None, optional
-        If `unmasked_nulls_processing` is not UnmaskedNullsProcessing.NONE, this
-        parameter must be provided as a function that takes year and month as
-        input and returns a valid file name string, or a format string following
-        the same formatting rules as `source_file`. The output files will
-        contain boolean variables with the same names as the ERA5 Land variables
-        that were processed, and will have the value True wherever unmasked null
-        values were found in the original data, and False elsewhere.
+        Files in which to save the locations of unmasked null values for each
+        source file. This parameter must be provided as a function that takes
+        year and month as input and returns a valid file name string, or a
+        format string following the same formatting rules as `source_file`. The
+        output files will contain boolean variables with the same names as the
+        ERA5 Land variables that were processed, and will have the value True
+        wherever unmasked null values were found in the original data, and False
+        elsewhere. This parameter is ignored if `mask_file` is not provided. It
+        *is* used if `if_unmasked_nulls` is set to UnmaskedNullsHandling.IGNORE
+        and if `unmasked_nulls_processing` is not UnmaskedNullsProcessing.NONE.
+        Those parameters control logging/reporting and filling of unmasked null
+        values, respectively, not whether to output a file with null value
+        points.
     """
     # TODO: The parsing of source_files and output_files should be refactored to
     # use the resolve_file_paths function.
