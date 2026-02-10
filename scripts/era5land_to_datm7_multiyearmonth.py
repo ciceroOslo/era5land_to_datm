@@ -18,6 +18,11 @@ from era5land_to_datm.logger_registry import (
     register_logger,
     set_logging_level,
 )
+from era5land_to_datm.masking import (
+    MaskedValuesHandling,
+    UnmaskedNullsHandling,
+    UnmaskedNullsProcessing,
+)
 
 
 
@@ -179,12 +184,12 @@ if __name__ == '__main__':
     parser.add_argument(
         '--if-masked-values',
         type=MaskedValuesHandling,
-        default=MaskedValuesHandling.FAIL.value,
+        default=MaskedValuesHandling.RAISE.value,
         choices=[_s.value for _s in MaskedValuesHandling],
         help=(
             'How to handle non-null values found in the masked-out area '
             'defined by the mask file provided with --mask-file. Options are:\n'
-            f'- {MaskedValuesHandling.FAIL.value}:\n'
+            f'- {MaskedValuesHandling.RAISE.value}:\n'
             '    Raise an error if any non-null values are found in the masked '
             'area.\n'
             f'- {MaskedValuesHandling.WARN.value}:\n'
@@ -203,7 +208,7 @@ if __name__ == '__main__':
         help=(
             'How to handle null values found in the unmasked area defined by '
             'the mask file provided with --mask-file. Options are:\n'
-            f'- {UnmaskedNullsHandling.FAIL.value}:\n'
+            f'- {UnmaskedNullsHandling.RAISE.value}:\n'
             '    Raise an error if any null values are found in the unmasked '
             'area.\n'
             f'- {UnmaskedNullsHandling.WARN.value}:\n'
@@ -244,7 +249,7 @@ if __name__ == '__main__':
             'and False elsewhere. If not provided, or if the pattern is an '
             'empty string, these files will not be saved. This option is '
             'independent of the --if-unmasked-nulls option, but if that '
-            f'option is set to {UnmaskedNullsHandling.FAIL.value}, the script '
+            f'option is set to {UnmaskedNullsHandling.RAISE.value}, the script '
             'will raise an error and not save any more files once the first '
             'unmasked null value is encountered. To get a report of all '
             'unmasked null values, that option must be set to either warn or '

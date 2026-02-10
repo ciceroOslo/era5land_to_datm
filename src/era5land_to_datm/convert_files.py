@@ -50,6 +50,11 @@ from .file_name_parsing import (
     resolve_file_paths,
 )
 from .logger_registry import register_logger
+from .masking import (
+    MaskedValuesHandling,
+    UnmaskedNullsHandling,
+    UnmaskedNullsProcessing,
+)
 from .types import YearMonth
 
 
