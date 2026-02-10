@@ -220,6 +220,43 @@ def convert_era5_file(
             'The `output_files` parameter is missing entries for the following '
             f'requested streams: {missing_output_streams}'
         )
+    if mask_file is not None:
+        try:
+            mask_file: Path = Path(mask_file)
+        except TypeError as _type_err:
+            mask_file_str: str = str(mask_file)
+            # Shorten the mask_file_str so that it won't flood the logs
+            if len(mask_file_str) > 512:
+                mask_file_str = (
+                    mask_file_str[:256] + '... (truncated) ...' + mask_file_str[-256:]
+                )
+            error_msg: str = (
+                'Received a value for `mask_file` that could not be converted '
+                f'to a valid Path object: {mask_file_str}'
+            )
+            logger.error(
+                msg=error_msg,
+                exc_info=_type_err,
+                extra={'mask_file_value': mask_file},
+            )
+            raise TypeError(error_msg) from _type_err
+        if not mask_file.exists():
+            raise FileNotFoundError(
+                f'The specified mask file does not exist: {mask_file!s}'
+            )
+        if (
+                (if_masked_values == MaskedValuesHandling.IGNORE)
+                and (if_unmasked_nulls == UnmaskedNullsHandling.IGNORE)
+                and (unmasked_nulls_processing == UnmaskedNullsProcessing.NONE)
+                and (null_value_file is None)
+        ):
+            logger.warning(
+                'A mask file was provided, but all options for handling masked '
+                'non-null values and unmasked null values are set to ignore or '
+                'none, and no null value file is specified. This means that the '
+                'mask file will not actually be used for anything. Please check '
+                'your parameters and make sure this is what you intended.'
+            )
 
     logger.info(
         f'Opening ERA5 Land GRIB files:\n'
@@ -249,6 +286,7 @@ def convert_era5_file(
                 f'{_dim}: {_round_to}'
                 for _dim, _round_to in latlon_rounding_map.items()
             )
+            + 'The mask file will be rounded in the same way if provided.'
         )
         source_ds = round_coords(
             source_ds,
@@ -265,6 +303,24 @@ def convert_era5_file(
         logger.info(
             'Lazy loading requested, not loading datasets into memory yet.'
         )
+    if mask_file is not None:
+        mask_ds: xr.Dataset = xr.open_dataset(
+            mask_file,
+            chunks='auto' if not disable_dask else None,
+        )
+        if len(latlon_rounding_map) > 0:
+            mask_ds = round_coords(
+                mask_ds,
+                rounding_map=latlon_rounding_map,
+            )
+        unmasked_null_ds: xr.Dataset | None
+        masked_nonnull_ds: xr.Dataset | None
+        source_ds, unmasked_null_ds, masked_nonnull_ds = process_unmasked_nulls(
+            source=source_ds,
+            mask=mask_ds,
+            
+        )
+
     logger.info('Converting and writing output DATM7 netCDF files...')
     for _target_stream in output_streams:
         logger.info(f'  Processing stream {_target_stream.value}...')
@@ -398,7 +454,11 @@ def convert_monthly_era5_files(
         `round_lat_to` and `round_lon_to` parameters if specified. The mask file
         can be created using the `create_era5land_to_datm_mask_file.py` script
         based on an existing mask or a data file with the same grid as the ERA5
-        Land files and representative values.
+        Land files and representative values. **NB!** The mask file is *not*
+        used to actually mask out values in the output files, and is not
+        included as a mask variable in the output files. It is only used for
+        checking the source data and reporting masked non-null and unmasked null
+        values.
     if_masked_values : MaskedValuesHandling, optional
         How to handle non-null values found in the masked areas (where the mask
         is False). By default, MaskedValuesHandling.RAISE, which will raise a
@@ -703,6 +763,28 @@ def convert_monthly_era5_files(
             use_output_files,
             use_null_value_files,
     ):
+        # Ignore the mask_file if no options are set to use it, to avoid
+        # generating a warning for every single monthly file conversion.
+        if mask_file is not None:
+            if (
+                    (if_masked_values == MaskedValuesHandling.IGNORE)
+                    and (if_unmasked_nulls == UnmaskedNullsHandling.IGNORE)
+                    and (unmasked_nulls_processing == UnmaskedNullsProcessing.NONE)
+                    and (_null_value_file is None)
+            ):
+                logger.warning(
+                    'A mask file was provided, but all options for handling '
+                    'masked non-null values and unmasked null values are set '
+                    'to ignore or none, and no null value file is specified. '
+                    'This means that the mask file will not actually be used '
+                    'for anything. Please check your parameters and make sure '
+                    'this is what you intended.'
+                )
+                use_mask_file: Path|str|None = None
+            else:
+                use_mask_file = mask_file
+        else:
+            use_mask_file = mask_file
         logger.info(
             f'Converting files:\n'
             f'  source_file: {_source!s}\n'
@@ -718,7 +800,7 @@ def convert_monthly_era5_files(
             output_files=_output_mapping,
             round_lat_to=round_lat_to,
             round_lon_to=round_lon_to,
-            mask_file=mask_file,
+            mask_file=use_mask_file,
             if_masked_values=if_masked_values,
             if_unmasked_nulls=if_unmasked_nulls,
             unmasked_nulls_processing=unmasked_nulls_processing,
