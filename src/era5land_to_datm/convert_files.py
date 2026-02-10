@@ -18,6 +18,7 @@ convert_monthly_era5_files
 from collections import Counter
 from collections.abc import (
     Callable,
+    Iterator,
     Mapping,
     Sequence,
 )
@@ -42,7 +43,14 @@ from .file_io import (
     open_era5land_grib,
     write_datm_nc,
 )
+from .file_name_parsing import (
+    DuplicateFilesError,
+    FilesAlreadyExistError,
+    FilesNotFoundError,
+    resolve_file_paths,
+)
 from .logger_registry import register_logger
+from .types import YearMonth
 
 
 
@@ -388,6 +396,8 @@ def convert_monthly_era5_files(
         that were processed, and will have the value True wherever unmasked null
         values were found in the original data, and False elsewhere.
     """
+    # TODO: The parsing of source_files and output_files should be refactored to
+    # use the resolve_file_paths function.
     if isinstance(source_files, str):
         _source_files: str = copy.copy(source_files)
         def _source_files_func(year: int, month: int) -> Path:
@@ -408,8 +418,10 @@ def convert_monthly_era5_files(
         )
         use_source_files: list[Path] = [
             source_files_func(year=_year, month=_month)
-            for _year in range(start_year_month[0], end_year_month[0] + 1)
-            for _month in range(start_year_month[1], end_year_month[1] + 1)
+            for _year, _month in YearMonth.range(
+                YearMonth(*start_year_month),
+                YearMonth(*end_year_month),
+            )
         ]
     elif isinstance(source_files, Sequence):
         use_source_files = [Path(_f) for _f in source_files]
@@ -459,8 +471,10 @@ def convert_monthly_era5_files(
                 ).resolve()
                 for _stream in Datm7Stream
             }
-            for _year in range(start_year_month[0], end_year_month[0] + 1)
-            for _month in range(start_year_month[1], end_year_month[1] + 1)
+            for _year, _month in YearMonth.range(
+                YearMonth(*start_year_month),
+                YearMonth(*end_year_month),
+            )
         ]
     elif isinstance(output_files, Sequence):
         use_output_files = [
@@ -548,11 +562,99 @@ def convert_monthly_era5_files(
         if next_source_file is not None
         else 'No next source file specified.'
     )
-    for _previous_source, _source, _next_source, _output_mapping in zip(
+    if null_value_files is not None:
+        if start_year_month is None or end_year_month is None:
+            null_files_field_values: dict[str, tuple[int, ...]] = {}
+        else:
+            year_months: Iterator[YearMonth] = YearMonth.range(
+                YearMonth(*start_year_month),
+                YearMonth(*end_year_month),
+            )
+            year_values: tuple[int, ...]
+            month_values: tuple[int, ...]
+            year_values, month_values = zip(*year_months)
+            null_files_field_values: dict[str, tuple[int, ...]] = {
+                'year': year_values,
+                'month': month_values,
+            }
+        try:
+            use_null_value_files: Sequence[Path|None] = resolve_file_paths(
+                paths=null_value_files,
+                field_values=null_files_field_values,
+                check_not_exists=True,
+                check_duplicates=True,
+            )
+        except TypeError as _type_err:
+            error_msg: str = (
+                'Encountered an error when trying to generate null '
+                'value file paths from the provided `null_value_files` '
+                'argument. It is likely that you provided a format or '
+                'function that does not have "year" and "month" as '
+                'parameters, but other issues can be the cause. Please '
+                'check the stack trace for details.'
+            )
+            logger.error(
+                msg=error_msg,
+                exc_info=_type_err,
+            )
+            raise TypeError(error_msg) from _type_err
+        except FilesAlreadyExistError as _exist_err:
+            error_msg = (
+                'Encountered an error when trying to generate null value '
+                'file paths from the provided `null_value_files` argument. '
+                'Some of the generated file paths already exist. Please '
+                'move or delete these files, or choose a different format or '
+                'function for `null_value_files`. The existing files are:\n'
+                + ',\n'.join(str(_f) for _f in _exist_err.existing_files)
+            )
+            logger.error(
+                msg=error_msg,
+                exc_info=_exist_err,
+                extra={
+                    'existing_files': _exist_err.existing_files,
+                },
+            )
+            raise FilesAlreadyExistError(
+                error_msg,
+                existing_files=_exist_err.existing_files,
+            ) from _exist_err
+        except DuplicateFilesError as _dup_err:
+            error_msg = (
+                'Encountered an error when trying to generate null value '
+                'file paths from the provided `null_value_files` argument. '
+                'Some of the generated file paths are duplicates. Please '
+                'check your format or function for `null_value_files` to '
+                'ensure that it generates unique file paths for each month. '
+                'The duplicate files are:\n'
+                + ',\n'.join(str(_f) for _f in _dup_err.duplicate_files)
+            )
+            logger.error(
+                msg=error_msg,
+                exc_info=_dup_err,
+                extra={
+                    'duplicate_files': _dup_err.duplicate_files,
+                    'file_counts': _dup_err.file_counts,
+                },
+            )
+            raise DuplicateFilesError(
+                error_msg,
+                duplicate_files=_dup_err.duplicate_files,
+                file_counts=_dup_err.file_counts,
+            ) from _dup_err
+    else:
+        use_null_value_files: Sequence[Path|None] = [None]*len(use_source_files)
+    for (
+            _previous_source,
+            _source,
+            _next_source,
+            _output_mapping,
+            _null_value_file,
+    ) in zip(
             (previous_source_file, *use_source_files[:-1]),
             use_source_files,
             (*use_source_files[1:], next_source_file),
             use_output_files,
+            use_null_value_files,
     ):
         logger.info(
             f'Converting files:\n'
@@ -569,5 +671,10 @@ def convert_monthly_era5_files(
             output_files=_output_mapping,
             round_lat_to=round_lat_to,
             round_lon_to=round_lon_to,
+            mask_file=mask_file,
+            if_masked_values=if_masked_values,
+            if_unmasked_nulls=if_unmasked_nulls,
+            unmasked_nulls_processing=unmasked_nulls_processing,
+            null_value_file=_null_value_file,
         )
 ###END def convert_monthly_era5_files
