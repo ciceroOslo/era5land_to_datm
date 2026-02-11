@@ -14,10 +14,22 @@ convert_monthly_era5_files
     Converts multiple ERA5 Land GRIB files to DATM7 threestream netCDF files,
     assuming one file per calendar month, and handling adjacent files as needed
     for cumulative variables.
+
+Attributes
+----------
+LOCATION_DIM_ATTR_NAME : str
+    The name of the Dataset / netCDF file attribute that holds the name of the
+    flattened location dimension, for Datasets and files where the data is
+    flattened from a multi-dimensional time/latitude/longitude grid into a
+    single location dimension with latitude/longitude coordinates and times in
+    one-dimensional coordinate variables. The name of the dimension may have to
+    vary to avoid collisions with existing dimensions and variable names in the
+    dataset, and is therefore stored in an attribute rather than being fixed.
 """
 from collections import Counter
 from collections.abc import (
     Callable,
+    Hashable,
     Iterator,
     Mapping,
     Sequence,
@@ -64,6 +76,8 @@ from .masking import (
 from .types import YearMonth
 
 
+
+LOCATION_DIM_ATTR_NAME: tp.Final[str] = "location_dim"
 
 logger: logging.Logger = logging.getLogger(__name__)
 register_logger(logger)
@@ -1101,11 +1115,51 @@ def process_mask_and_nulls(
             or null_value_file is not None
     ):
         logger.info('Checking for null values in unmasked areas...')
+        # We expect the umasked null values to be relatively sparse, so the
+        # output below will be a flattened dataset of boolean values.
+        # Flatten along a new dimension, named 'location', but with underscores
+        # added as needed to make the name unique.
+        source_existing_ids: set[Hashable] = {*source.dims, *source.variables}
+        location_dim: str = 'location'
+        variable_dim: str = 'variable'
+        while location_dim in source_existing_ids:
+            location_dim += '_'
+        while variable_dim in source_existing_ids:
+            variable_dim += '_'
         unmasked_null_ds: xr.Dataset = (
             source
-            .where(mask_aligned)  # Set to null wherever masked
+            .where(mask_aligned, other=False)  # Set to False wherever masked
             .isnull()  # Set all null values (now only in unmasked areas) to True.
-        )
+            .stack({location_dim: tuple(source.dims)})  # Flatten all dimensions into a single location dimensions
+            .to_dataarray(dim=variable_dim)  # Convert to DataArray with a variable dimension
+            .pipe(lambda da: da.sel({location_dim: da.notnull().any(dim=variable_dim)}))  # Keep only locations where at least one variable is non-null
+            .to_dataset(dim=variable_dim)  # Convert back to Dataset with variables as data variables
+            .assign_attrs(
+                {
+                    'description': (
+                        'Boolean, flattened dataset of coordinates where '
+                        'unmasked null values were found in the original '
+                        'source. Each variable has the same name as a variable '
+                        'in the original source dataset, and is True where that'
+                        'variable had an unmasked null value, False '
+                        'elsewhere. Points where no variables had unmasked '
+                        'null values are not included. The latitude, longitude '
+                        'and time dimensions have been flattened into a single '
+                        'location dimension. The name of the location '
+                        'dimension is stored in the '
+                        f'`{LOCATION_DIM_ATTR_NAME}` attribute. The original '
+                        'coordinates are stored in coordinate variables with '
+                        'the same names as the dimensions in the source file.'
+                    ),
+                    'source_files': (
+                        ', '.join(str(_f) for _f in source_files)
+                        if source_files is not None
+                        else 'N/A (source file names not provided)'
+                    ),
+                    LOCATION_DIM_ATTR_NAME: location_dim,
+                }
+            )
+        ).compute()  # Compute here to avoid doing it multiple times in the checks below.
         unmasked_null_vars: list[str] = []
         for _var in unmasked_null_ds.data_vars:
             logger.debug(
@@ -1128,7 +1182,7 @@ def process_mask_and_nulls(
                         'source_files': source_files,
                     },
                 )
-                write_unmasked_nulls_file(
+                _write_unmasked_nulls_file(
                     ds=unmasked_null_ds,
                     path=null_value_file,
                 )
@@ -1217,3 +1271,47 @@ def process_mask_and_nulls(
     )
 
 ### END def process_mask_and_nulls
+
+
+def _write_unmasked_nulls_file(
+        ds: xr.Dataset,
+        path: Path|str,
+) -> None:
+    """Writes a dataset of unmasked null value locations to a NetCDF file.
+
+    This is used to save the locations of unmasked null values in the source
+    dataset, if any are found, for later inspection by the user. The dataset
+    should be in the format produced by the `process_mask_and_nulls` function,
+    with boolean values indicating the locations of unmasked null values for
+    each variable, and with all dimensions flattened into a single location
+    dimension.
+
+    Parameters
+    ----------
+    ds : xr.Dataset
+        The dataset to write. This should be in the format produced by the
+        `process_mask_and_nulls` function for the `unmasked_null_ds` field.
+    path : Path | str
+        The file path where to save the dataset. This should be a .nc file.
+
+    Returns
+    -------
+    None
+    """
+    try:
+        ds.to_netcdf(path)
+        logger.info(f'Successfully saved unmasked null value locations to file: {path!s}')
+    except Exception as _err:
+        error_msg = (
+            f'An error occurred while trying to save unmasked null value '
+            f'locations to file: {path!s}.'
+        )
+        logger.error(
+            msg=error_msg,
+            exc_info=_err,
+            extra={
+                'path': path,
+            }
+        )
+        raise _err
+### END def _write_unmasked_nulls_file
