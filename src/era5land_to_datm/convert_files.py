@@ -1315,3 +1315,54 @@ def _write_unmasked_nulls_file(
         )
         raise _err
 ### END def _write_unmasked_nulls_file
+
+
+def process_unmasked_nulls(
+        *,
+        source: xr.Dataset,
+        mask: xr.Dataset,
+        processing_method: UnmaskedNullsProcessing,
+        unmasked_null_ds: xr.Dataset | None,
+        preserve_masked_values: bool = False,
+        time_layout: ERA5LandTimeLayout = ERA5LandTimeLayout.DATE_STEP,
+) -> xr.Dataset:
+    """Fills unmasked null values in the source dataset.
+
+    This function fills unmasked null values in the source dataset using the
+    specified method. By default, non-null values in the masked areas become
+    nulls in the returned Dataset, but this can be modified with the
+    `preserve_masked_values` parameter.
+
+    Parameters
+    ----------
+    source : xr.Dataset
+        The source dataset to process. This should be the dataset opened from
+        the ERA5 Land GRIB file, after any coordinate rounding has been applied,
+        and after aligning with the mask dataset.
+    mask : xr.Dataset
+        The aligned mask dataset, with boolean values indicating the masked and
+        unmasked areas. This should have the same spatial dimensions and the
+        same coordinate values in the same order as `source`. True for unmasked
+        points (that should have be filled with non-null values), False for
+        masked points (that should have null values or not be used).
+    processing_method : UnmaskedNullsProcessing
+        The method to use for filling unmasked null values. See the
+        `unmasked_nulls_processing` parameter in `convert_era5_file` for
+        details.
+    unmasked_null_ds : xr.Dataset | None
+        If available, this should be the dataset of unmasked null value
+        locations produced by the `process_mask_and_nulls` function. It is not
+        required, but can improve performance if it has been precomputed,
+        especially in cases where most of the variables do not have any unmasked
+        nulls.
+    preserve_masked_values : bool, optional
+        If True, non-null values in the masked areas in the source dataset will
+        be preserved in the returned dataset. If False (the default), masked
+        points in the returned Dataset will be set to null values.
+    time_layout : ERA5LandTimeLayout
+        The time layout of the source dataset (whether a `time` dimension with
+        dates and a `step` dimension with intra-day offsets, or a single
+        linearized `time` dimension). Optional, defaults to
+        `ERA5LandTimeLayout.DATE_STEP`.
+    """
+    
