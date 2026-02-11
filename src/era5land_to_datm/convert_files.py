@@ -228,7 +228,7 @@ def convert_era5_file(
         )
     if mask_file is not None:
         try:
-            mask_file: Path = Path(mask_file)
+            mask_file = Path(mask_file)
         except TypeError as _type_err:
             mask_file_str: str = str(mask_file)
             # Shorten the mask_file_str so that it won't flood the logs
@@ -1095,11 +1095,9 @@ def process_mask_and_nulls(
         logger.debug('Skipping check for non-null values in masked areas.')
         return_masked_nonnull_ds = None
 
-    # Check for null values in the unmasked areas if needed, and fill if
-    # requested.
+    # Check for null values in the unmasked areas if needed.
     if (
             if_unmasked_nulls != UnmaskedNullsHandling.IGNORE
-            or unmasked_nulls_processing != UnmaskedNullsProcessing.NONE
             or null_value_file is not None
     ):
         logger.info('Checking for null values in unmasked areas...')
@@ -1117,6 +1115,24 @@ def process_mask_and_nulls(
             if unmasked_null_ds[_var].any().compute().item():
                 unmasked_null_vars.append(str(_var))
         if len(unmasked_null_vars) > 0:
+            if null_value_file is not None:
+                logger.info(
+                    msg=(
+                        'Found unmasked null values for variables: '
+                        + ', '.join(unmasked_null_vars)
+                        + f'. Saving locations to file: {null_value_file!s}'
+                    ),
+                    extra={
+                        'unmasked_null_vars': unmasked_null_vars,
+                        'null_value_file': null_value_file,
+                        'source_files': source_files,
+                    },
+                )
+                write_unmasked_nulls_file(
+                    ds=unmasked_null_ds,
+                    path=null_value_file,
+                )
+            return_unmasked_null_ds = unmasked_null_ds
             unmasked_null_msg: str = (
                 f'Found null values in unmasked areas for variables: '
                 + ', '.join(unmasked_null_vars)
@@ -1156,16 +1172,43 @@ def process_mask_and_nulls(
                 raise RuntimeError(error_msg)
         else:
             logger.info('No null values found in unmasked areas.')
-        return_unmasked_null_ds = unmasked_null_ds
+            return_unmasked_null_ds = None
+    else:
+        logger.debug('Skipping explicit check for null values in unmasked areas.')
+        return_unmasked_null_ds = None
+
+    # Fill unmasked null values if requested.
+    if unmasked_nulls_processing != UnmaskedNullsProcessing.NONE:
+        logger.info(
+            msg=(
+                'Processing unmasked null values using option '
+                f'{unmasked_nulls_processing!s}...'
+            ),
+            extra={
+                'unmasked_nulls_processing': unmasked_nulls_processing,
+                'source_files': source_files,
+            }
+        )
         source = process_unmasked_nulls(
             source=source,
-            unmasked_null_ds=unmasked_null_ds,
+            mask=mask_aligned,
+            unmasked_null_ds=return_unmasked_null_ds,
             processing_method=unmasked_nulls_processing,
             time_layout=source_time_layout,
         )
+        logger.info(
+            msg='Finished processing unmasked null values.',
+            extra={
+                'source_files': source_files,
+            },
+        )
     else:
-        logger.debug('Skipping check for null values in unmasked areas.')
-        return_unmasked_null_ds = None
+        logger.debug(
+            msg='Skipping processing of unmasked null values.',
+            extra={
+                'source_files': source_files,
+            }
+        )
 
     return ProcessMaskAndNullsResult(
         filled_ds=source,
