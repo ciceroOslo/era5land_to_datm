@@ -507,13 +507,13 @@ def convert_monthly_era5_files(
         If any null values are found in the unmasked areas, this parameter
         controls whether to attempt to fill these values, and if so, how. By
         default UnmaskedNullsProcessing.NONE, which means that no filling will
-        be attempted. If set to UnmaskedNullsProcessing.FILL_NEAREST, the null
-        values in the unmasked areas will be filled using nearest-neighbor
-        values from the same variable in the same time step. No other options
-        are currently supported. This parameter is ignored if `mask_file` is not
-        provided. It *is* used if `if_unmasked_nulls` is set to
-        UnmaskedNullsHandling.IGNORE, since that option only controls whether to
-        log and report the presence of unmasked nulls to the user.
+        be attempted. If set to UnmaskedNullsProcessing.LINEAR, the null values
+        in the unmasked areas will be filled using 1D linear interpolation along
+        the time dimension. No other options are currently supported. This
+        parameter is ignored if `mask_file` is not provided. It *is* used if
+        `if_unmasked_nulls` is set to UnmaskedNullsHandling.IGNORE, since that
+        option only controls whether to log and report the presence of unmasked
+        nulls to the user.
     null_value_files : Callable | None, optional
         Files in which to save the locations of unmasked null values for each
         source file. This parameter must be provided as a function that takes
@@ -1365,6 +1365,7 @@ def process_unmasked_nulls(
         linearized `time` dimension). Optional, defaults to
         `ERA5LandTimeLayout.DATE_STEP`.
     """
+    time_layout = ERA5LandTimeLayout(time_layout)
     # Shortcut the process if the method is NONE
     if processing_method == UnmaskedNullsProcessing.NONE:
         if preserve_masked_values:
@@ -1384,3 +1385,22 @@ def process_unmasked_nulls(
             'No unmasked null values found in the provided unmasked_null_ds, '
             'skipping filling process.'
         )
+
+    # We only support `LINEAR` for now, so fail if we received anything
+    # else.
+    if processing_method != UnmaskedNullsProcessing.LINEAR:
+        error_msg: str = (
+            'Received unknown unmasked nulls processing method: '
+            f'{processing_method!s}. This should not be possible at this point '
+            'in the code, and indicates either a bug or that this function has '
+            'not been updated to support newly added processing methods.'
+        )
+        logger.error(
+            msg=error_msg,
+            extra={
+                'processing_method': processing_method,
+            }
+        )
+        raise RuntimeError(error_msg)
+
+    # Fill unmasked null values using

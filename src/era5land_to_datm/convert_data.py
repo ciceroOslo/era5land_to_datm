@@ -376,6 +376,10 @@ def era5land_to_linear_time(
         )
     else:
         temp_time_coord_name = source_time_coord
+    # Define functions to set the index for the new time dimension and to
+    # optionally drop the source date and step dimension coordinates, depending
+    # on whether we should preserve variables for the original coordinates or
+    # not.
     set_index_func: Callable[[xr.Dataset], xr.Dataset] = (
         (
             lambda ds: ds.set_index({temp_time_dim_name: temp_time_coord_name})
@@ -392,7 +396,7 @@ def era5land_to_linear_time(
             lambda ds: ds.drop_vars([source_date_dim, source_step_dim])
         )
     )
-            
+    # Pipe the source Dataset through each of the necessary transformations.
     output_ds: xr.Dataset = (
         source
         .reset_index(

@@ -74,12 +74,12 @@ class UnmaskedNullsProcessing(enum.Enum):
         Leave the unmasked null values as nulls. **NB!** Note that this option
         may still imply that masked values are converted to nulls, so may not
         return the original data set unchanged.
-    FILL_NEAREST
-        Fill the unmasked null values with nearest-neighbor values (usually
-        without interpolation or other computations).
+    LINEAR
+        Fill the unmasked null values with 1D linear interpolation (usually
+        along the time dimension).
     """
     NONE = 'none'
-    FILL_NEAREST = 'fill_nearest'
+    LINEAR = 'linear'
 ###END class UnmaskedNullsProcessing
 
 
