@@ -77,6 +77,7 @@ from .dimensions import (
     Datm7Dim,
     ERA5_LINEARIZED_TIME_DIM,
     Era5LandDim,
+    Era5LandLinearizedTimeDimId,
     ERA5LandTimeLayout,
     LinearizedTimeDimId,
 )
@@ -309,6 +310,7 @@ def era5land_to_linear_time(
         source_time_coord: str|None = Era5LandCoord.TIME_LINEAR,
         preserve_source_time_coord: bool = False,
         preserve_source_time_component_coords: bool = False,
+        source_time_component_coords_rename: Mapping[str, str] | None = None,
 ) -> xr.Dataset:
     """Converts an ERA5 Land Dataset with a two-dimensional date+intradate step
     time layout to a Dataset with a linearized one-dimensional time layout. No
@@ -353,6 +355,19 @@ def era5land_to_linear_time(
         only the new linearized time coordinate will be kept. If True, they will
         be kept in the output dataset, but will have their values copied to fill
         every point along the new linearized time dimension.
+    source_time_component_coords_rename : Mapping[str, str] | None, optional
+        If `preserve_source_time_component_coords` is True, this mappping can be
+        used to specify a custom renaming for the original source date and step
+        dimension coordinates in the output Dataset. The keys should be the
+        original coordinate names and the values the names in the output. If
+        None or not specified, they will be renamed to the coordinate names
+        given in the `Era5LandLinearizedTimeDimId` enum. If specified, the
+        caller is responsible for ensuring both that the keys are the correct
+        original names and that the values/target names do not overlap with any
+        dimension, coordinate or data variable names in the output. Set to an
+        empty dict if you do not want any renaming, but note that this will
+        most likely result in an error because of name collisions between the
+        source date coordinate and the new time dimension name.
 
     Returns
     -------
@@ -376,6 +391,11 @@ def era5land_to_linear_time(
         )
     else:
         temp_time_coord_name = source_time_coord
+    if source_time_component_coords_rename is None:
+        source_time_component_coords_rename = {
+            source_date_dim: Era5LandLinearizedTimeDimId.DATE,
+            source_step_dim: Era5LandLinearizedTimeDimId.STEP,
+        }
     # Define functions to set the index for the new time dimension and to
     # optionally drop the source date and step dimension coordinates, depending
     # on whether we should preserve variables for the original coordinates or
@@ -389,9 +409,9 @@ def era5land_to_linear_time(
             )
         )
     )
-    drop_time_component_coords_func: Callable[[xr.Dataset], xr.Dataset] = (
+    transform_time_component_coords_func: Callable[[xr.Dataset], xr.Dataset] = (
         (
-            lambda ds: ds
+            lambda ds: ds.rename(source_time_component_coords_rename)
         )  if preserve_source_time_component_coords else (
             lambda ds: ds.drop_vars([source_date_dim, source_step_dim])
         )
@@ -408,7 +428,7 @@ def era5land_to_linear_time(
             create_index=False,
         )
         .pipe(set_index_func)
-        .pipe(drop_time_component_coords_func)
+        .pipe(transform_time_component_coords_func)
         .rename({temp_time_dim_name: str(output_time_dim)})
     )
     return output_ds
