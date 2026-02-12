@@ -1365,4 +1365,22 @@ def process_unmasked_nulls(
         linearized `time` dimension). Optional, defaults to
         `ERA5LandTimeLayout.DATE_STEP`.
     """
-    
+    # Shortcut the process if the method is NONE
+    if processing_method == UnmaskedNullsProcessing.NONE:
+        if preserve_masked_values:
+            return source
+        else:
+            return source.where(mask)
+    # Shortcut the process if the caller reports no unmasked null values
+    if unmasked_null_ds is not None and (
+            not any(
+                unmasked_null_ds[_var].any().compute().item()
+                for _var in unmasked_null_ds.data_vars
+            ) or not any (
+                _size > 0 for _size in unmasked_null_ds.sizes.values()
+            )
+    ):
+        logger.debug(
+            'No unmasked null values found in the provided unmasked_null_ds, '
+            'skipping filling process.'
+        )

@@ -71,7 +71,9 @@ class UnmaskedNullsProcessing(enum.Enum):
     Members
     -------
     NONE
-        Leave the unmasked null values as nulls.
+        Leave the unmasked null values as nulls. **NB!** Note that this option
+        may still imply that masked values are converted to nulls, so may not
+        return the original data set unchanged.
     FILL_NEAREST
         Fill the unmasked null values with nearest-neighbor values (usually
         without interpolation or other computations).

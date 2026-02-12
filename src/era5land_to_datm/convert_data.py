@@ -307,6 +307,8 @@ def era5land_to_linear_time(
         source_step_dim: str = Era5LandDim.STEP,
         output_time_dim: LinearizedTimeDimId = ERA5_LINEARIZED_TIME_DIM,
         source_time_coord: str|None = Era5LandCoord.TIME_LINEAR,
+        preserve_source_time_coord: bool = False,
+        preserve_source_time_component_coords: bool = False,
 ) -> xr.Dataset:
     """Converts an ERA5 Land Dataset with a two-dimensional date+intradate step
     time layout to a Dataset with a linearized one-dimensional time layout. No
@@ -335,6 +337,22 @@ def era5land_to_linear_time(
         `source_step_dim`. If None, the time coordinate variable will be
         computed from the indexes of the date and step dimensions, which will
         require extra computation. By default `Era5LandCoord.TIME_LINEAR`.
+    preserve_source_time_coord : bool, optional
+        Whether to preserve the source time coordinate variable in the output
+        Dataset (in addition to setting a possibly renamed version of it as the
+        time index coordinate). If False, the source time coordinate variable
+        will have its values preserved in the new time index coordinate, but
+        attributes may be dropped (since `xarray.Dataset.set_index` does not
+        necessarily preserve attributes). If True, the source time coordinate
+        variable will be kept in its original form with original attributes in
+        the output Dataset, except for having its dimensions stacked as for the
+        rest of the Dataset. By default False.
+    preserve_source_time_component_coords : bool, optional
+        Whether to preserve the source date and step dimension coordinates in
+        the output Dataset. If False, these coordinates will be dropped, and
+        only the new linearized time coordinate will be kept. If True, they will
+        be kept in the output dataset, but will have their values copied to fill
+        every point along the new linearized time dimension.
 
     Returns
     -------
@@ -358,16 +376,35 @@ def era5land_to_linear_time(
         )
     else:
         temp_time_coord_name = source_time_coord
+    set_index_func: Callable[[xr.Dataset], xr.Dataset] = (
+        (
+            lambda ds: ds.set_index({temp_time_dim_name: temp_time_coord_name})
+        ) if not preserve_source_time_coord else (
+            lambda ds: ds.assign_coords(
+                {temp_time_dim_name: ds[temp_time_coord_name]}
+            )
+        )
+    )
+    drop_time_component_coords_func: Callable[[xr.Dataset], xr.Dataset] = (
+        (
+            lambda ds: ds
+        )  if preserve_source_time_component_coords else (
+            lambda ds: ds.drop_vars([source_date_dim, source_step_dim])
+        )
+    )
+            
     output_ds: xr.Dataset = (
         source
-        .reset_index((source_date_dim, source_step_dim), drop=True)
+        .reset_index(
+            (source_date_dim, source_step_dim),
+            drop=not preserve_source_time_coord,
+        )
         .stack(
-            {temp_time_dim_name: (source_date_dim, source_step_dim)}
+            {temp_time_dim_name: (source_date_dim, source_step_dim)},
+            create_index=False,
         )
-        .set_index(
-            {temp_time_dim_name: temp_time_coord_name}
-        )
-        .drop_vars([source_date_dim, source_step_dim])
+        .pipe(set_index_func)
+        .pipe(drop_time_component_coords_func)
         .rename({temp_time_dim_name: str(output_time_dim)})
     )
     return output_ds
