@@ -47,7 +47,10 @@ from korsbakken_python_utils.containers.dataobject import UniformTypeDataObject
 import numpy as np
 import xarray as xr
 
-from .convert_data import make_datm_ds
+from .convert_data import (
+    era5land_to_linear_time,
+    make_datm_ds,
+)
 from .datm_streams import Datm7Stream
 from .dimensions import (
     Datm7Dim,
@@ -1325,6 +1328,7 @@ def process_unmasked_nulls(
         unmasked_null_ds: xr.Dataset | None,
         preserve_masked_values: bool = False,
         time_layout: ERA5LandTimeLayout = ERA5LandTimeLayout.DATE_STEP,
+        source_files: Sequence[Path|str] | None = None,
 ) -> xr.Dataset:
     """Fills unmasked null values in the source dataset.
 
@@ -1364,6 +1368,12 @@ def process_unmasked_nulls(
         dates and a `step` dimension with intra-day offsets, or a single
         linearized `time` dimension). Optional, defaults to
         `ERA5LandTimeLayout.DATE_STEP`.
+    source_files : Sequence[Path|str] | None, optional
+        If provided, this should be a sequence of file paths to the source files
+        being processed. This is only used for logging and error messages, to
+        provide more context to the user about which file is being processed and
+        which files have issues with unmasked null values. If not provided, the
+        log messages will not include file-specific context.
     """
     time_layout = ERA5LandTimeLayout(time_layout)
     # Shortcut the process if the method is NONE
@@ -1382,9 +1392,42 @@ def process_unmasked_nulls(
             )
     ):
         logger.debug(
-            'No unmasked null values found in the provided unmasked_null_ds, '
-            'skipping filling process.'
+            msg=(
+                'No unmasked null values found in the provided unmasked_null_ds, '
+                'skipping filling process.'
+                + (
+                    f' Source files: {list(source_files)!s}'
+                    if source_files is not None
+                    else ' Source files: N/A (source file names not provided)'
+                )
+            ),
+            extra={
+                'source_files': source_files,
+            },
         )
+
+    # Confirm that the mask and source datasets have compatible dimensions
+    if (
+            (not set(mask.dims).issubset(set(source.dims)))
+            or (mask.sizes != {_dim: source.sizes[_dim] for _dim in mask.dims})
+    ):
+        error_msg = (
+            'The mask dataset does not have compatible dimensions with the '
+            'source dataset. Please check that the mask dataset has the same '
+            'spatial dimensions as the source dataset, with the same coordinate '
+            'values in the same order. Mask dataset dimensions and sizes: '
+            f'{mask.sizes!s}. Source dataset dimensions and sizes: '
+            f'{source.sizes!s}.'
+        )
+        logger.error(
+            msg=error_msg,
+            extra={
+                'mask_sizes': mask.sizes,
+                'source_sizes': source.sizes,
+                'source_files': source_files,
+            },
+        )
+        raise ValueError(error_msg)
 
     # We only support `LINEAR` for now, so fail if we received anything
     # else.
@@ -1399,8 +1442,16 @@ def process_unmasked_nulls(
             msg=error_msg,
             extra={
                 'processing_method': processing_method,
-            }
+                'source_files': source_files,
+            },
         )
         raise RuntimeError(error_msg)
 
-    # Fill unmasked null values using
+    # Fill unmasked null values using linear interpolation along the time
+    # dimension.
+    if time_layout == ERA5LandTimeLayout.DATE_STEP:
+        source = era5land_to_linear_time(
+            source=source,
+            preserve_source_time_coord=True,
+            preserve_source_time_component_coords=True,
+        )
