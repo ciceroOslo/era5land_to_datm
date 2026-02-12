@@ -1455,3 +1455,15 @@ def process_unmasked_nulls(
             preserve_source_time_coord=True,
             preserve_source_time_component_coords=True,
         )
+    source_filled = source.where(mask).interpolate_na(
+        dim=ERA5_LINEARIZED_TIME_DIM,
+        method='linear',
+    )
+    if preserve_masked_values:
+        source_filled = source_filled.combine_first(source)
+    if time_layout == ERA5LandTimeLayout.DATE_STEP:
+        source_filled = era5land_from_linear_time(
+            source=source_filled,
+        )
+    return source_filled
+### END def process_unmasked_nulls
