@@ -14,6 +14,9 @@ era5land_to_linear_time
     Converts an ERA5 Land Dataset with a two-dimensional date+intradate step
     time layout to a Dataset with a linearized one-dimensional time layout. No
     other changes are made to variable values, coordinates or attributes.
+era5land_from_linear_time
+    Converts an ERA5 Land Dataset with a linearized one-dimensional time layout
+    back to a Dataset with a two-dimensional date+intradate step time layout.
 postprocess_converted_datm_ds
     Postprocesses a converted DATM xarray Dataset after all variables have been
     created, to perform any final adjustments needed.
@@ -433,6 +436,58 @@ def era5land_to_linear_time(
     )
     return output_ds
 ###END def era5land_to_linear_time
+
+
+def era5land_from_linear_time(
+        source: xr.Dataset,
+        *,
+        source_time_dim: str = ERA5_LINEARIZED_TIME_DIM,
+        target_date_dim: str = Era5LandDim.DATE,
+        target_step_dim: str = Era5LandDim.STEP,
+        fast_unstack: bool = False,
+        source_date_coord: str|None = Era5LandLinearizedTimeDimId.DATE,
+        source_step_coord: str|None = Era5LandLinearizedTimeDimId.STEP,
+) -> xr.Dataset:
+    """Converts an ERA5 Land Dataset with a linearized one-dimensional time layout
+    back to a Dataset with a two-dimensional date+intradate step time layout. No
+    other changes are made to variable values, coordinates or attributes.
+
+    Parameters
+    ----------
+    source : xr.Dataset
+        The source ERA5 Land Dataset with a linearized one-dimensional time
+        layout.
+    source_time_dim : str, optional
+        The name of the linearized time dimension in the source Dataset. By
+        default `ERA5_LINEARIZED_TIME_DIM`.
+    target_date_dim : str, optional
+        The name to use for the date dimension in the output Dataset. By default
+        `Era5LandDim.DATE`.
+    target_step_dim : str, optional
+        The name to use for the intradate step dimension in the output Dataset. By default `Era5LandDim.STEP`.
+    fast_unstack : bool, optional
+        Whether to assume that the source Dataset has a sorted and complete time
+        index, so unstack through direct reshaping rather than by using the
+        `xarray.Dataset.unstack` method (which unstacks based on coordinate
+        values, and is much slower for a large dataset). If True, the caller
+        must ensure that `source` is sorted along the time dimension, that the
+        first time point is 01:00 of the first date and the last time point is
+        00:00 of the day after the last date, and that the spacing between time
+        values is exactly 1 hour with no missing points. If not, the behavior is
+        undefined (will probably crash, but can lead to silent errors).
+    source_date_coord : str|None, optional
+        If the source Dataset has a coordinate variable for the date component of
+        the time dimension, the name of that variable. If None, it is assumed that
+        there is no such variable. If specified, its values will be used to set
+        the values of the date coordinate in the output Dataset. If not, it will
+        be computed from the time index values in `source` (which may be
+        slightly slower). By default `Era5LandLinearizedTimeDimId.DATE`.
+    source_step_coord : str|None, optional
+        The name of the coordinate variable for the step component of the time
+        dimension in the source Dataset, if present. Same comments apply as for
+        `source_date_coord`. By default `Era5LandLinearizedTimeDimId.STEP`.
+    """
+    
 
 
 def postprocess_converted_datm_ds(
