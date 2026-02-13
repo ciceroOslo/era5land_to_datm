@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Convert ERA5-Land monthly data to DATM7 format for multiple years and months.
 
 This script converts a series of ERA5 Land GRIB files with data for one month
@@ -26,7 +25,7 @@ from era5land_to_datm.masking import (
 
 
 
-if __name__ == '__main__':
+def main() -> None:
     import argparse
 
     parser = argparse.ArgumentParser(
@@ -306,3 +305,8 @@ if __name__ == '__main__':
         unmasked_nulls_processing=args.unmasked_nulls_processing,
         null_value_files=args.null_value_files,
     )
+
+###END def main
+
+if __name__ == '__main__':
+    main()

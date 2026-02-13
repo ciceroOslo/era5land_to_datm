@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Script to convert a single ERA5 Land GRIB file to netCDF suitable for DATM7.
 
 The script converts a single main ERA5 Land GRIB file, with optional previous
@@ -21,7 +20,7 @@ from era5land_to_datm.logger_registry import (
 )
 
 
-if __name__ == '__main__':
+def main() -> None:
     import argparse
  
     parser = argparse.ArgumentParser(
@@ -128,3 +127,8 @@ if __name__ == '__main__':
         keep_first_last_dates=args.keep_first_last_dates,
         eager=not args.lazy,
     )
+
+###END def main
+
+if __name__ == '__main__':
+    main()

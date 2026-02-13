@@ -1289,7 +1289,7 @@ packages:
 - pypi: ./
   name: era5land-to-datm
   version: 0.2.0
-  sha256: 62994337afd7176eec8cac86e0f3d75b0c5e9e6b060bcb24d897bd5a9068fac4
+  sha256: 4b9ed63d0ec526a42efa59955f073018466f7b644fb593b661979ed00c2024d8
   requires_dist:
   - korsbakken-python-utils[dask] @ git+https://github.com/korsbakken/korsbakken_python_utils.git@v0.5.2
   requires_python: '>=3.13'
