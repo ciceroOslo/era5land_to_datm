@@ -44,6 +44,8 @@ decumulate_era5land_var
     for the previous time step only. The value of each time step can then be
     averaged with the next time step and divided by 2 times the time step length
     to produce an average rate value.
+round_coords
+    Rounds coordinate values to the nearest value from a given mapping.
 
 Attributes
 ----------
@@ -841,7 +843,7 @@ class UnexpectedEra5LandUnitsError(Exception):
         Creates a default error message listing the variables with unexpected
         units, the units found, and the expected units.
     """
-    
+
     def __init__(
             self,
             *args,
@@ -1052,3 +1054,100 @@ def make_datm_base(
 
     return target_ds
 ###END def make_datm_base
+
+
+def round_coords[_XrObj: xr.Dataset | xr.DataArray](
+        xr_obj: _XrObj,
+        round_to: Mapping[Hashable, float] | float,
+        *,
+        use_numpy_digit_number_rounding: bool = False,
+) -> _XrObj:
+    """Round coordinate values in an xarray Dataset.
+
+    NB! By default, this function rounds simply by dividing by the number being
+    rounded to, rounding to the nearest integer with `numpy.round`, and then
+    multiplying back. This means that for values close to the middle of a
+    rounding interval, the results may not be as expected due to limited float
+    precision. If you want to round to a specific number of digits with
+    predictable outcomes instead, you can set `use_numpy_digit_number_rounding`
+    to True. See parameter description below.
+
+    Parameters
+    ----------
+    xr_obj : xarray.Dataset or xarray.DataArray
+        The xarray object to round coordinates in. The function will return a
+        new object with the same data variables and values, but with rounded
+        coordinate values.
+    round_to : Mapping[str, float] | float
+        The number to round to. The coordinates will be rounded to the nearest
+        multiple of tis number. If a mapping, the keys should be coordinate
+        names and the values the rounding intervals to round those coordinates
+        to. If a single float or int is given, it will be used as the rounding
+        interval for all coordinates in `xr_obj.coords`. Note that the function
+        will also round data variables if `round_to` is a mapping and contains
+        keys that are names of data variables in `xr_obj`. No warning or error
+        will be raised in this case. Data variables will not be rounded if
+        `round_to` is a single number.
+    use_numpy_digit_number_rounding : bool, optional
+        Whether to round by using `numpy.round` with a specific number of digits
+        instead of by dividing and multiplying. If True, the round_to will be
+        interpreted as the number of digits after the decimal point to round to,
+        rather than as the actual number to round to. See the documentation of
+        `numpy.round` for more details on how the rounding works in this case.
+
+    Returns
+    -------
+    xarray.Dataset or xarray.DataArray
+        A new xarray object with the same data variables and values as `xr_obj`,
+        but with rounded coordinate values.
+
+    Raises
+    ------
+    KeyError
+        If `round_to` is a mapping and contains keys that are not names of
+        coordinates or data variables in `xr_obj`.
+    TypeError
+        If `use_numpy_digit_number_rounding` is True and any of the rounding
+        values in `round_to` are not integers.
+    """
+    if isinstance(round_to, (float, int)):
+        round_to_mapping: Mapping[Hashable, float] = {
+            coord: float(round_to) for coord in xr_obj.coords
+        }
+    else:
+        if any(
+                _var_name not in xr_obj.variables
+                for _var_name in round_to.keys()
+        ):
+            raise KeyError(
+                'All keys in round_to mapping must be names of coordinates or '
+                'data variables in xr_obj.'
+            )
+        round_to_mapping = round_to
+    rounded_obj: _XrObj = xr_obj.copy(deep=False)
+    if use_numpy_digit_number_rounding:
+        if any(
+                int(_rounding) != _rounding
+                for _rounding in round_to_mapping.values()
+        ):
+            raise TypeError(
+                'When use_numpy_digit_number_rounding is True, the values in '
+                'round_to must be integers representing the number of digits to '
+                'round to.'
+            )
+        rounding_func: Callable[[xr.DataArray, float], xr.DataArray] = (
+            lambda _arr, _decimals: _arr.round(int(_decimals))
+        )
+    else:
+        rounding_func: Callable[[xr.DataArray, float], xr.DataArray] = (
+            lambda _arr, _rounding: (
+                (_arr / _rounding).round() * _rounding
+            )
+        )
+    for _var_name, _rounding in round_to_mapping.items():
+        rounded_obj[_var_name] = rounding_func(
+            rounded_obj[_var_name],
+            _rounding,
+        )
+    return rounded_obj
+###END def round_coords

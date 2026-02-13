@@ -52,6 +52,7 @@ from .convert_data import (
     era5land_from_linear_time,
     era5land_to_linear_time,
     make_datm_ds,
+    round_coords,
 )
 from .datm_streams import Datm7Stream
 from .dimensions import (
@@ -296,7 +297,7 @@ def convert_era5_file(
         chunks='auto' if not disable_dask else None,
     )
     logger.info('Finished opening ERA5 Land GRIB files.')
-    latlon_rounding_map: dict[Era5LandDim, float] = {
+    latlon_rounding_map: dict[Hashable, float] = {
         _dim: _round_to
         for _dim, _round_to in zip(
             (Era5LandDim.LAT, Era5LandDim.LON),
@@ -315,7 +316,7 @@ def convert_era5_file(
         )
         source_ds = round_coords(
             source_ds,
-            rounding_map=latlon_rounding_map,
+            round_to=latlon_rounding_map,
         )
     if eager:
         logger.info('Loading dataset into memory...')
@@ -336,7 +337,7 @@ def convert_era5_file(
         if len(latlon_rounding_map) > 0:
             mask_ds = round_coords(
                 mask_ds,
-                rounding_map=latlon_rounding_map,
+                round_to=latlon_rounding_map,
             )
         unmasked_null_ds: xr.Dataset | None
         masked_nonnull_ds: xr.Dataset | None
