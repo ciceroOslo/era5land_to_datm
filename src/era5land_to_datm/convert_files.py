@@ -39,6 +39,7 @@ import enum
 import itertools
 import logging
 from pathlib import Path
+import time
 import typing as tp
 from typing import NamedTuple
 import warnings
@@ -1456,15 +1457,51 @@ def process_unmasked_nulls(
             preserve_source_time_coord=True,
             preserve_source_time_component_coords=True,
         )
+    logger.info(
+        msg=(
+            'Filling unmasked null values using linear interpolation along '
+            'the linearized time dimension.'
+            + (
+                f' Source files: {list(source_files)!s}'
+                if source_files is not None
+                else ' Source files: N/A (source file names not provided)'
+            )
+        ),
+        extra={
+            'processing_method': processing_method,
+            'time_layout': time_layout,
+            'source_files': source_files,
+        },
+    )
+    start_process_time: float = time.process_time()
     source_filled = source.where(mask).interpolate_na(
         dim=ERA5_LINEARIZED_TIME_DIM,
         method='linear',
     )
     if preserve_masked_values:
         source_filled = source_filled.combine_first(source)
+    done_filling_time: float = time.process_time()
+    filling_time_consumed: float = done_filling_time - start_process_time
+    logger.info(
+        msg=(
+            'Finished filling unmasked null values in '
+            f'{filling_time_consumed/1000.0:.3G} ms.'
+        )
+    )
     if time_layout == ERA5LandTimeLayout.DATE_STEP:
         source_filled = era5land_from_linear_time(
             source=source_filled,
+            fast_unstack=True,
+        )
+        done_unstacking_time: float = time.process_time()
+        unstacking_time_consumed: float = (
+            done_unstacking_time - done_filling_time
+        )
+        logger.info(
+            msg=(
+                'Finished unstacking linearized time dimension in '
+                f'{unstacking_time_consumed/1000.0:.3G} ms.'
+            )
         )
     return source_filled
 ### END def process_unmasked_nulls
