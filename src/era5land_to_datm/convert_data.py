@@ -310,10 +310,10 @@ def decumulate_era5land_var(
 def era5land_to_linear_time(
         source: xr.Dataset,
         *,
-        source_date_dim: str = Era5LandDim.DATE,
-        source_step_dim: str = Era5LandDim.STEP,
+        source_date_dim: str = Era5LandDim.DATE.value,
+        source_step_dim: str = Era5LandDim.STEP.value,
         output_time_dim: LinearizedTimeDimId = ERA5_LINEARIZED_TIME_DIM,
-        source_time_coord: str|None = Era5LandCoord.TIME_LINEAR,
+        source_time_coord: str|None = Era5LandCoord.TIME_LINEAR.value,
         preserve_source_time_coord: bool = False,
         preserve_source_time_component_coords: bool = False,
         source_time_component_coords_rename: Mapping[str, str] | None = None,
@@ -399,8 +399,8 @@ def era5land_to_linear_time(
         temp_time_coord_name = source_time_coord
     if source_time_component_coords_rename is None:
         source_time_component_coords_rename = {
-            source_date_dim: Era5LandLinearizedTimeDimId.DATE,
-            source_step_dim: Era5LandLinearizedTimeDimId.STEP,
+            source_date_dim: Era5LandLinearizedTimeDimId.DATE.value,
+            source_step_dim: Era5LandLinearizedTimeDimId.STEP.value,
         }
     # Define functions to set the index for the new time dimension and to
     # optionally drop the source date and step dimension coordinates, depending
@@ -419,7 +419,10 @@ def era5land_to_linear_time(
         (
             lambda ds: ds.rename(source_time_component_coords_rename)
         )  if preserve_source_time_component_coords else (
-            lambda ds: ds.drop_vars([source_date_dim, source_step_dim])
+            lambda ds: ds.drop_vars(
+                [source_date_dim, source_step_dim],
+                errors='ignore',
+            )
         )
     )
     # Pipe the source Dataset through each of the necessary transformations.
@@ -445,12 +448,12 @@ def era5land_from_linear_time(
         source: xr.Dataset,
         *,
         source_time_dim: str = ERA5_LINEARIZED_TIME_DIM,
-        target_date_dim: str = Era5LandDim.DATE,
-        target_step_dim: str = Era5LandDim.STEP,
+        target_date_dim: str = Era5LandDim.DATE.value,
+        target_step_dim: str = Era5LandDim.STEP.value,
         fast_unstack: bool = False,
-        source_date_coord: str|None = Era5LandLinearizedTimeDimId.DATE,
-        source_step_coord: str|None = Era5LandLinearizedTimeDimId.STEP,
-        target_time_coord_name: str | None = Era5LandCoord.TIME_LINEAR,
+        source_date_coord: str|None = Era5LandLinearizedTimeDimId.DATE.value,
+        source_step_coord: str|None = Era5LandLinearizedTimeDimId.STEP.value,
+        target_time_coord_name: str | None = Era5LandCoord.TIME_LINEAR.value,
 ) -> xr.Dataset:
     """Converts an ERA5 Land Dataset with a linearized one-dimensional time layout
     back to a Dataset with a two-dimensional date+intradate step time layout. No
