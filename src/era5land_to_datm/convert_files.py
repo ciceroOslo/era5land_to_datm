@@ -1006,7 +1006,7 @@ def process_mask_and_nulls(
             },
             method='nearest',
             tolerance=coord_tolerance,
-        )
+        ).reindex_like(source, tolerance=coord_tolerance, method='nearest')
     except KeyError as _key_err:
         error_msg = (
             'Could not align the mask dataset with the source dataset. Most'
