@@ -182,7 +182,7 @@ def main() -> None:
     )
     parser.add_argument(
         '--if-masked-values',
-        type=MaskedValuesHandling,
+        type=str,
         default=MaskedValuesHandling.RAISE.value,
         choices=[_s.value for _s in MaskedValuesHandling],
         help=(
@@ -201,7 +201,7 @@ def main() -> None:
     )
     parser.add_argument(
         '--if-unmasked-nulls',
-        type=UnmaskedNullsHandling,
+        type=str,
         default=UnmaskedNullsHandling.WARN.value,
         choices=[_s.value for _s in UnmaskedNullsHandling],
         help=(
@@ -220,7 +220,7 @@ def main() -> None:
     )
     parser.add_argument(
         '--unmasked-nulls-processing',
-        type=UnmaskedNullsProcessing,
+        type=str,
         default=UnmaskedNullsProcessing.LINEAR.value,
         choices=[_s.value for _s in UnmaskedNullsProcessing],
         help=(
@@ -300,9 +300,9 @@ def main() -> None:
         round_lat_to=args.round_lat_to,
         round_lon_to=args.round_lon_to,
         mask_file=args.mask_file,
-        if_masked_values=args.if_masked_values,
-        if_unmasked_nulls=args.if_unmasked_nulls,
-        unmasked_nulls_processing=args.unmasked_nulls_processing,
+        if_masked_values=MaskedValuesHandling(args.if_masked_values),
+        if_unmasked_nulls=UnmaskedNullsHandling(args.if_unmasked_nulls),
+        unmasked_nulls_processing=UnmaskedNullsProcessing(args.unmasked_nulls_processing),
         null_value_files=args.null_value_files,
     )
 
