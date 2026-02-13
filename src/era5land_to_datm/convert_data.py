@@ -312,7 +312,7 @@ def era5land_to_linear_time(
         *,
         source_date_dim: str = Era5LandDim.DATE.value,
         source_step_dim: str = Era5LandDim.STEP.value,
-        output_time_dim: LinearizedTimeDimId = ERA5_LINEARIZED_TIME_DIM,
+        output_time_dim: str = ERA5_LINEARIZED_TIME_DIM,
         source_time_coord: str|None = Era5LandCoord.TIME_LINEAR.value,
         preserve_source_time_coord: bool = False,
         preserve_source_time_component_coords: bool = False,
@@ -333,7 +333,7 @@ def era5land_to_linear_time(
     source_step_dim : str, optional
         The name of the intradate step dimension in the source Dataset. By
         default `Era5LandDim.STEP`.
-    output_time_dim : LinearizedTimeDimId, optional
+    output_time_dim : str, optional
         The name to use for the linearized time dimension in the output Dataset.
         By default `ERA5_LINEARIZED_TIME_DIM`.
     source_time_coord : str|None, optional
