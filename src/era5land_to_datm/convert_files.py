@@ -1191,6 +1191,7 @@ def process_mask_and_nulls(
                 _write_unmasked_nulls_file(
                     ds=unmasked_null_ds,
                     path=null_value_file,
+                    reset_location_dim_index=location_dim,
                 )
             return_unmasked_null_ds = unmasked_null_ds
             unmasked_null_msg: str = (
@@ -1282,6 +1283,8 @@ def process_mask_and_nulls(
 def _write_unmasked_nulls_file(
         ds: xr.Dataset,
         path: Path|str,
+        *,
+        reset_location_dim_index: str|None = None,
 ) -> None:
     """Writes a dataset of unmasked null value locations to a NetCDF file.
 
@@ -1299,11 +1302,18 @@ def _write_unmasked_nulls_file(
         `process_mask_and_nulls` function for the `unmasked_null_ds` field.
     path : Path | str
         The file path where to save the dataset. This should be a .nc file.
+    reset_location_dim_index : str | None, optional
+        Specify that the location dimension index should be reset, and the name
+        of that dimension. This is needed when the location dimension uses a
+        MultiIndex (which it usually will), since xarray cannot save
+        MultiIndexes to NetCDF files.
 
     Returns
     -------
     None
     """
+    if reset_location_dim_index is not None:
+        ds = ds.reset_index(reset_location_dim_index, drop=False)
     try:
         ds.to_netcdf(path)
         logger.info(f'Successfully saved unmasked null value locations to file: {path!s}')
