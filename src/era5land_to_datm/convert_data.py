@@ -428,10 +428,6 @@ def era5land_to_linear_time(
     # Pipe the source Dataset through each of the necessary transformations.
     output_ds: xr.Dataset = (
         source
-        .reset_index(
-            (source_date_dim, source_step_dim),
-            drop=not preserve_source_time_coord,
-        )
         .stack(
             {temp_time_dim_name: (source_date_dim, source_step_dim)},
             create_index=False,
