@@ -1324,7 +1324,7 @@ def _write_unmasked_nulls_file(
 def process_unmasked_nulls(
         *,
         source: xr.Dataset,
-        mask: xr.Dataset,
+        mask: xr.DataArray,
         processing_method: UnmaskedNullsProcessing,
         unmasked_null_ds: xr.Dataset | None,
         preserve_masked_values: bool = False,
@@ -1344,9 +1344,9 @@ def process_unmasked_nulls(
         The source dataset to process. This should be the dataset opened from
         the ERA5 Land GRIB file, after any coordinate rounding has been applied,
         and after aligning with the mask dataset.
-    mask : xr.Dataset
-        The aligned mask dataset, with boolean values indicating the masked and
-        unmasked areas. This should have the same spatial dimensions and the
+    mask : xr.DataArray
+        The aligned mask DataArray, with boolean values indicating the masked
+        and unmasked areas. This should have the same spatial dimensions and the
         same coordinate values in the same order as `source`. True for unmasked
         points (that should have be filled with non-null values), False for
         masked points (that should have null values or not be used).

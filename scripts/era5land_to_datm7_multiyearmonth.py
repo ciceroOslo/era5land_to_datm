@@ -222,13 +222,13 @@ if __name__ == '__main__':
     parser.add_argument(
         '--unmasked-nulls-processing',
         type=UnmaskedNullsProcessing,
-        default=UnmaskedNullsProcessing.FILL_NEAREST.value,
+        default=UnmaskedNullsProcessing.LINEAR.value,
         choices=[_s.value for _s in UnmaskedNullsProcessing],
         help=(
             'Whether and how to attempt to fill null values found in the '
             'unmasked area defined by the mask file provided with --mask-file. '
             'Options are:\n'
-            f'- {UnmaskedNullsProcessing.FILL_NEAREST.value}:\n'
+            f'- {UnmaskedNullsProcessing.LINEAR.value}:\n'
             '    Attempt to fill null values in the unmasked area by filling '
             'them with the nearest non-null value in the same variable. This '
             'is the default option.\n'
