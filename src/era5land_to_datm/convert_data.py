@@ -70,6 +70,7 @@ import functools
 import logging
 import typing as tp
 
+import numpy as np
 import xarray as xr
 
 from .datm_streams import (
@@ -447,6 +448,7 @@ def era5land_from_linear_time(
         fast_unstack: bool = False,
         source_date_coord: str|None = Era5LandLinearizedTimeDimId.DATE,
         source_step_coord: str|None = Era5LandLinearizedTimeDimId.STEP,
+        target_time_coord_name: str | None = Era5LandCoord.TIME_LINEAR,
 ) -> xr.Dataset:
     """Converts an ERA5 Land Dataset with a linearized one-dimensional time layout
     back to a Dataset with a two-dimensional date+intradate step time layout. No
@@ -456,7 +458,12 @@ def era5land_from_linear_time(
     ----------
     source : xr.Dataset
         The source ERA5 Land Dataset with a linearized one-dimensional time
-        layout.
+        layout. **NB!** The Dataset must not contain any variables, coordinates
+        or dimension names that are equal to any of the names given in the
+        other parameters of this function, *or* their defaults if not they are
+        not provided explicitly, unless they are used as intended by those
+        parameter values. Any name collisions will most likely result in an
+        unspecified error, but could also lead to silent errors in the data.
     source_time_dim : str, optional
         The name of the linearized time dimension in the source Dataset. By
         default `ERA5_LINEARIZED_TIME_DIM`.
@@ -464,7 +471,8 @@ def era5land_from_linear_time(
         The name to use for the date dimension in the output Dataset. By default
         `Era5LandDim.DATE`.
     target_step_dim : str, optional
-        The name to use for the intradate step dimension in the output Dataset. By default `Era5LandDim.STEP`.
+        The name to use for the intradate step dimension in the output Dataset.
+        By default `Era5LandDim.STEP`.
     fast_unstack : bool, optional
         Whether to assume that the source Dataset has a sorted and complete time
         index, so unstack through direct reshaping rather than by using the
@@ -476,18 +484,89 @@ def era5land_from_linear_time(
         values is exactly 1 hour with no missing points. If not, the behavior is
         undefined (will probably crash, but can lead to silent errors).
     source_date_coord : str|None, optional
-        If the source Dataset has a coordinate variable for the date component of
-        the time dimension, the name of that variable. If None, it is assumed that
-        there is no such variable. If specified, its values will be used to set
-        the values of the date coordinate in the output Dataset. If not, it will
-        be computed from the time index values in `source` (which may be
-        slightly slower). By default `Era5LandLinearizedTimeDimId.DATE`.
+        If the source Dataset has a coordinate variable for the date component
+        of the time dimension, the name of that variable. If None, it is assumed
+        that there is no such variable. If specified, its values will be used to
+        set the values of the date coordinate in the output Dataset. If not, it
+        will be computed from the time index values in `source` (which may be
+        slightly slower). By default `Era5LandLinearizedTimeDimId.DATE`. **NB!**
+        If not specified, the computed values will be stored in a new coordinate
+        variable with the default name, and any existing variable with the same
+        name will be overwritten.
     source_step_coord : str|None, optional
         The name of the coordinate variable for the step component of the time
         dimension in the source Dataset, if present. Same comments apply as for
         `source_date_coord`. By default `Era5LandLinearizedTimeDimId.STEP`.
+        **NB!** If not specified, the computed values will be stored in a new
+        coordinate variable with the default name, and any existing variable
+        with the same name will be overwritten.
+    target_time_coord_name : str | None, optional
+        The name to use for a 2D time coordinate variable in the output Dataset.
+        If this variable is already present in the source Dataset, it will be
+        used as the target variable without checking its values. If not present,
+        the time index coordinate of `source` will simply be renamed to this
+        name. If None, no 2D time coordinate variable will be set, and the
+        time index coordinate of `source` will be dropped. By default
+        `Era5LandCoord.TIME_LINEAR`.
     """
-    
+    if source_date_coord is None:
+        source_date_coord = Era5LandLinearizedTimeDimId.DATE
+        # Get the date from the time index coordinate. Since the last step for
+        # each date is midnight and therefore belongs to the next date, we need
+        # to subtract 1 second before flooring to date.
+        source = source.assign_coords(
+            {
+                source_date_coord: (
+                    source[source_time_dim] - np.timedelta64(1, 's')
+                ).dt.floor('D')
+            },
+        )
+    if source_step_coord is None:
+        source_step_coord = Era5LandLinearizedTimeDimId.STEP
+        # Get the step from the time index coordinate by taking the difference
+        # between the time and the date
+        source = source.assign_coords(
+            {
+                source_step_coord: (
+                    source[source_time_dim] - source[source_date_coord]
+                )
+            },
+        )
+    if fast_unstack:
+        target_ds: xr.Dataset = (
+            source
+            .coarsen({source_time_dim: 24}, boundary='exact')
+            .construct(
+                {
+                    source_time_dim: (source_date_coord, source_step_coord),
+                }
+            )
+        )
+    else:
+        target_ds: xr.Dataset = (
+            source
+            .set_index(
+                {
+                    source_time_dim: (source_date_coord, source_step_coord),
+                },
+            )
+            .unstack(source_time_dim)
+        )
+    if (
+            (target_time_coord_name is None)
+            or (target_time_coord_name in target_ds.variables)
+    ):
+        target_ds = target_ds.drop_vars(source_time_dim)
+    else:
+        target_ds = target_ds.rename({source_time_dim: target_time_coord_name})
+    target_ds = target_ds.rename(
+        {
+            source_date_coord: target_date_dim,
+            source_step_coord: target_step_dim,
+        }
+    )
+    return target_ds
+###END def era5land_from_linear_time
 
 
 def postprocess_converted_datm_ds(

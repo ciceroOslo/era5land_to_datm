@@ -38,6 +38,7 @@ python = ">=3.13.9"
 pydantic = ">=2.12.5"
 netcdf4 = ">=1.7.3"
 metpy = ">=1.7.1,<2"
+numpy = ">=2.3.5,<3"
 
 [tool.pixi.feature.dev.dependencies]
 ipykernel = "*"
