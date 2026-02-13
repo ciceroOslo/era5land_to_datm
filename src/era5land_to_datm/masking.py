@@ -161,6 +161,7 @@ def make_spatial_null_mask(
         dimensions and coordinates as the input dataset.
     """
 
+    time_layout = ERA5LandTimeLayout(time_layout)
     if time_layout == ERA5LandTimeLayout.DATE_STEP:
         data = era5land_to_linear_time(
             data,
