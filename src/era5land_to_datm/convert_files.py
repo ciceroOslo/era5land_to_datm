@@ -14,6 +14,8 @@ convert_monthly_era5_files
     Converts multiple ERA5 Land GRIB files to DATM7 threestream netCDF files,
     assuming one file per calendar month, and handling adjacent files as needed
     for cumulative variables.
+make_datm7_encoding_dict
+    Make a dictionary of encoding settings to use when writing the output DATM7
 
 Attributes
 ----------

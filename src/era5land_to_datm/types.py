@@ -15,10 +15,13 @@ EcmwfDatasetId
 Era5LandVar
     Enumeration of ERA5-Land variables available for download.
 """
+from collections.abc import Callable
+import datetime
 import enum
 import typing as tp
 
 import ecmwf.datastores as ecmwfds
+import numpy as np
 
 
 
@@ -126,3 +129,44 @@ class EcmwfDatasetId(enum.StrEnum):
 _ecmwf_collection_titles: tp.Final[dict[EcmwfDatasetId, str]] = {
     EcmwfDatasetId.ERA5LANDHRLY: 'ERA5-Land hourly data from 1950 to present',
 }
+
+
+DATM7_DATAVAR_DTYPE: tp.Final[np.dtype] = np.dtype('float32')
+DATM7_COORD_DTYPE: tp.Final[np.dtype] = np.dtype('float32')
+DATM7_CALENDAR: tp.Final[str] = 'noleap'
+DATM7_NC_FILE_FORMAT: tp.Final[str] = 'NETCDF4'
+
+class NcTimeEncoding(tp.TypedDict):
+    units: str | Callable[[np.datetime64], str]
+    calendar: str
+###END class NcTimeEncoding
+
+
+def make_datm7_time_units(start_time: np.datetime64) -> str:
+    """Make time units string for DATM7 time coordinate, given the start time.
+
+    Parameters
+    ----------
+    start_time : np.datetime64
+        The start time of the dataset, which will be used as the reference time
+        in the returned time units string.
+
+    Returns
+    -------
+    str
+        A time units string for the DATM7 time coordinate, with the reference
+        time set to the given start_time. The units will be days since the start
+        of the day to which `start_time` belongs in UTC.
+    """
+    start_time_string: str = (
+        start_time
+        .astype(datetime.datetime)
+        .strftime('%Y-%m-%d')
+    )
+    return f'days since {start_time_string}'
+
+
+DATM7_TIME_ENCODING: tp.Final[NcTimeEncoding] = NcTimeEncoding(
+    units=make_datm7_time_units,
+    calendar=DATM7_CALENDAR,
+)
