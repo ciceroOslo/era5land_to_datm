@@ -22,6 +22,12 @@ ERA5_LINEARIZED_TIME_DIM: Final[str]
     linearizing. This is equal to `Era5LandLinearizedTimeDimId.TIME`, and should
     usually be the same as `Datm7Dim.TIME` and be used for the time dimension in
     the converted DATM datasets.
+datm7_dim_order: Final[tuple[Datm7Dim, Datm7Dim, Datm7Dim]]
+    The order of dimensions to use in the converted DATM datasets.
+era5_to_datm7_dim_map : dict[Era5LandDim, Datm7Dim]
+    Mapping of ERA5 Land dimensions to corresponding DATM7 dimensions, after
+    linearizing the ERA5 Land time dimension with
+    `convert_data.era5land_to_linear_time`.
 """
 import enum
 import typing as tp
@@ -84,6 +90,13 @@ class Datm7Dim(enum.StrEnum):
 ###END class Datm7Dim
 
 
+datm7_dim_order: tp.Final[tuple[Datm7Dim, Datm7Dim, Datm7Dim]] = (
+    Datm7Dim.TIME,
+    Datm7Dim.LAT,
+    Datm7Dim.LON,
+)
+
+
 LinearizedTimeDimId = tp.NewType('LinearizedTimeDimId', str)
 ERA5_LINEARIZED_TIME_DIM: tp.Final[LinearizedTimeDimId] = LinearizedTimeDimId(
     Datm7Dim.TIME
@@ -96,3 +109,10 @@ except AssertionError as _ass_err:
         'equal to Era5LandLinearizedTimeDimId.TIME '
         f'({Era5LandLinearizedTimeDimId.TIME!r})'
     ) from _ass_err
+
+
+era5_to_datm7_dim_map: dict[Era5LandDim|LinearizedTimeDimId, Datm7Dim] = {
+    Era5LandDim.LAT: Datm7Dim.LAT,
+    Era5LandDim.LON: Datm7Dim.LON,
+    ERA5_LINEARIZED_TIME_DIM: Datm7Dim.TIME,
+}

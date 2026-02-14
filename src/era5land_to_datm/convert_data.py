@@ -52,9 +52,6 @@ Attributes
 value_conversion_funcs : Mapping[Datm7Var, Callable[[xr.Dataset], xr.DataArray]]
     Mapping of DATM7 variables to functions that convert an ERA5 Land Dataset
     to the corresponding DATM7 variable DataArray.
-era5_to_datm7_dim_map : dict[Era5LandDim, Datm7Dim]
-    Mapping of ERA5 Land dimensions to corresponding DATM7 dimensions, after
-    linearizing the ERA5 Land time dimension with `era5land_to_linear_time`.
 
 Exception Classes
 -----------------
@@ -86,6 +83,8 @@ from .dimensions import (
     Era5LandLinearizedTimeDimId,
     ERA5LandTimeLayout,
     LinearizedTimeDimId,
+    datm7_dim_order,
+    era5_to_datm7_dim_map,
 )
 from .logger_registry import register_logger
 from .meteorology import (
@@ -249,7 +248,6 @@ def make_datm_ds(
         target_ds=target_ds,
         target_stream=target_stream,
         source=source,
-        eager=eager,
     )
     logger.debug(
         f'Finished processing target stream {target_stream}, returning from '
@@ -575,10 +573,21 @@ def postprocess_converted_datm_ds(
         *,
         target_stream: Datm7Stream,
         source: xr.Dataset,
-        eager: bool = True,
+        dim_order: Iterable[Datm7Dim] = datm7_dim_order,
 ) -> xr.Dataset:
-    """Postprocesses a converted DATM xarray Dataset after all variables have been
-    created, to perform any final adjustments needed.
+    """Postprocesses a converted DATM xarray Dataset after all variables have
+    been created, to perform any final adjustments needed.
+
+    Currently the following postprocessing steps are performed in this function:
+    - Reorder the dimensions to match the expected order in the DATM7 data
+      (CESM may crash otherwise).
+    - Sort coordinates in ascending order by and for each dimension, as expected
+      by CESM.
+
+    Data type conversion, float precision, fill values and time units are set in
+    the `convert_files` module, since these attributes are specific to the
+    output file, and not necessary if the output is used for further processing
+    in Python.
 
     Parameters
     ----------
@@ -588,23 +597,31 @@ def postprocess_converted_datm_ds(
         The target DATM7 stream.
     source : xr.Dataset
         The source ERA5 Land Dataset.
-    eager: bool, optional
-        Whether to load the entire dataset into memory before processing. This
-        can significantly speed up some operations, while setting it to False
-        may lead require less memory usage but lead to some data being reloaded
-        and even reprocesseed multiple times, which can slow down the
-        processing. By default True. Set to False if you run into memory issues.
+    dim_order : Iterable[Datm7Dim], optional
+        The desired order of dimensions in the output Dataset. By default given
+        by the module-level attribute `datm7_dim_order`.
 
     Returns
     -------
     xr.Dataset
-        The postprocessed DATM xarray Dataset. At the moment, not postprocessing
-        is required, so the input Dataset is returned unchanged. Note that this
-        is the same Dataset object as the input, no copy is made. If any
-        non-trivial postprocessing is added in the future, the return value may
-        be a new Dataset instance.
+        The postprocessed DATM xarray Dataset. This will be a new Dataset
+        object. The original `target_ds` will not be modified.
     """
-    # Currently, no postprocessing is needed.
+    target_ds = target_ds.copy(deep=False)
+    use_dim_order: list[str] = [str(_dim) for _dim in dim_order]
+    if list(target_ds.dims) != use_dim_order:
+        logger.debug(
+            f'Reordering dimensions from {target_ds.dims} to {use_dim_order} '
+            f'for target stream {target_stream}...'
+        )
+        target_ds = target_ds.transpose(*use_dim_order)
+        for _var in target_ds.data_vars:
+            target_ds[_var] = target_ds[_var].transpose(*use_dim_order)
+    logger.debug(
+        'Sorting coordinates in ascending order for target stream '
+        f'{target_stream}...'
+    )
+    target_ds = target_ds.sortby(use_dim_order, ascending=True)
     return target_ds
 ###END def postprocess_converted_datm_ds
 
@@ -762,13 +779,6 @@ def add_target_var_attrs(
         **datm7_var_attrs[target_var],
     )
 ###END def add_target_var_attrs
-
-
-era5_to_datm7_dim_map: dict[Era5LandDim|LinearizedTimeDimId, Datm7Dim] = {
-    Era5LandDim.LAT: Datm7Dim.LAT,
-    Era5LandDim.LON: Datm7Dim.LON,
-    ERA5_LINEARIZED_TIME_DIM: Datm7Dim.TIME,
-}
 
 
 def set_target_dims_and_coords(
