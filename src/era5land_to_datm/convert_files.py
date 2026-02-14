@@ -1134,11 +1134,11 @@ def process_mask_and_nulls(
             variable_dim += '_'
         unmasked_null_ds: xr.Dataset = (
             source
+            .isnull()  # Set all null values to True.
             .where(mask_aligned, other=False)  # Set to False wherever masked
-            .isnull()  # Set all null values (now only in unmasked areas) to True.
-            .stack({location_dim: tuple(source.dims)})  # Flatten all dimensions into a single location dimensions
+            .stack({location_dim: tuple(source.dims)}, create_index=False)  # Flatten all dimensions into a single location dimensions, but wait to create a MultiIndex until we have pruned the result (the coordinates should still be kept)
             .to_dataarray(dim=variable_dim)  # Convert to DataArray with a variable dimension
-            .pipe(lambda da: da.sel({location_dim: da.notnull().any(dim=variable_dim)}))  # Keep only locations where at least one variable is non-null
+            .pipe(lambda da: da.sel({location_dim: da.any(dim=variable_dim)}))  # Keep only locations where at least one variable is non-null (i.e., where the value of the data at this point is True for at least one variable).
             .to_dataset(dim=variable_dim)  # Convert back to Dataset with variables as data variables
             .assign_attrs(
                 {
