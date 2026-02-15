@@ -1147,6 +1147,7 @@ def process_mask_and_nulls(
             .where(mask_aligned, other=False)  # Set to False wherever masked
             .stack({location_dim: tuple(source.dims)}, create_index=False)  # Flatten all dimensions into a single location dimensions, but wait to create a MultiIndex until we have pruned the result (the coordinates should still be kept)
             .to_dataarray(dim=variable_dim)  # Convert to DataArray with a variable dimension
+            .compute()  # We have to compute in order to select with `.any()` below.
             .pipe(lambda da: da.sel({location_dim: da.any(dim=variable_dim)}))  # Keep only locations where at least one variable is non-null (i.e., where the value of the data at this point is True for at least one variable).
             .to_dataset(dim=variable_dim)  # Convert back to Dataset with variables as data variables
             .assign_attrs(
