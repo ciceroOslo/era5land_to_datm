@@ -1322,7 +1322,11 @@ def _write_unmasked_nulls_file(
     -------
     None
     """
-    if reset_location_dim_index is not None:
+    if (
+            (reset_location_dim_index is not None)
+            # We have to test that there is an index, or reset_index will raise an error
+            and (reset_location_dim_index in ds.indexes)
+    ):
         ds = ds.reset_index(reset_location_dim_index, drop=False)
     try:
         ds.to_netcdf(path)
