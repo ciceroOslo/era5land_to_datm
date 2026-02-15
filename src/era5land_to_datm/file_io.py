@@ -14,6 +14,7 @@ from collections.abc import (
     Callable,
     Hashable,
 )
+import logging
 from pathlib import Path
 import typing as tp
 
@@ -34,6 +35,9 @@ from .types import (
     make_datm7_time_units,
 )
 
+
+
+logger = logging.getLogger(__name__)
 
 
 def open_era5land_grib(
@@ -59,9 +63,9 @@ def open_era5land_grib(
         default None.
     previous_file : Path | None, optional
         Path to the previous ERA5 Land GRIB file for cumulative variables. If
-        given, it will be lazily opened, and the last time step will be
-        extracted and concatenated to the main dataset along the time dimension.
-        Optional, by default None.
+        given, it will be lazily opened, and the last date will be extracted and
+        concatenated to the main dataset along the time dimension. Optional, by
+        default None.
     chunks : dict | int | 'auto' | None, optional
         Chunking option for xarray when opening the dataset. Passed directly to
         `xarray.open_dataset()`. By default 'auto'. To disable chunking, set to
@@ -126,7 +130,7 @@ def open_era5land_grib(
         previous_ds: xr.Dataset = xr.open_dataset(
             previous_file,
             chunks='auto',
-        ).isel({date_dim: -1, step_dim: -2})
+        ).isel({date_dim: -1})
         source_first_date = era5_ds[date_dim].isel({date_dim: 0})
         previous_last_date = previous_ds[date_dim]
         if source_first_date != previous_last_date:
@@ -139,21 +143,32 @@ def open_era5land_grib(
                 'The previous file contains variables that are not present in the '
                 'source file.'
             )
-        source_penultimate_step = era5_ds[step_dim].isel({step_dim: -2})
-        previous_penultimate_step = previous_ds[step_dim]
-        if source_penultimate_step != previous_penultimate_step:
-            raise ValueError(
-                f'The second last intra-date time step in the source file '
-                f'({source_penultimate_step}) does not match the second last intra-date '
-                f'time step in the previous file ({previous_penultimate_step}).'
+        source_step_coords = era5_ds[step_dim]
+        previous_step_coords = previous_ds[step_dim]
+        if not (source_step_coords == previous_step_coords).all():
+            error_msg: str = (
+                'The intra-date time steps in the source file do not match the '
+                'intra-date time steps in the previous file. Source steps: '
+                f'{source_step_coords.to_numpy()}, previous steps: '
+                f'{previous_step_coords.to_numpy()}.'
             )
+            logger.error(
+                msg=error_msg,
+                extra={
+                    'source_step_coords': source_step_coords,
+                    'previous_step_coords': previous_step_coords,
+                },
+            )
+            raise ValueError(error_msg)
         for _var in era5_ds.data_vars:
             era5_ds[_var].loc[
                 {
                     date_dim: source_first_date,
-                    step_dim: source_penultimate_step,
+                    step_dim: source_step_coords.isel(
+                        {step_dim: slice(0, -1)}
+                    ),
                 }
-            ] = previous_ds[_var]
+            ] = previous_ds[_var].sel({step_dim: slice(0, -1)})
     return era5_ds
 ###END def open_era5land_grib
 

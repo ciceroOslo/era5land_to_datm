@@ -24,6 +24,12 @@ process_unmasked_nulls
     Attempt to fill unmasked null values in the source ERA5 Land data, given a
     provided mask.
 
+Enums
+-----
+OnFirstLastDatesNotMonthBoundary
+    Enum for how to handle if the month boundaries are not where expected in the
+    source files.
+
 Attributes
 ----------
 LOCATION_DIM_ATTR_NAME : str
@@ -90,6 +96,41 @@ from .masking import (
 )
 from .types import YearMonth
 
+
+
+class OnFirstLastDatesNotMonthBoundary(enum.StrEnum):
+    """How to handle if mounth boundaries are not found where expected.
+
+    The conversion code expects that the last time step in the last date of the
+    main source file belongs to the first day of the next month (midnight), and
+    that the first time step in the first date is 1am on the first day of the
+    month, while the last date in the "previous" file is the last day of the
+    previous month, while the first date of the "next" file contains midnight of the
+    first day of the next month.
+
+    The enums represent options for what to do if any signs are detected that
+    these expectations don't hold.
+
+    **NB!** This enum was introduced late in development, and may not actually
+    be used by all parts of the code that deal with month boundaries.
+
+    Members
+    -------
+    RAISE
+        Raise a ValueError if any signs are detected that the month boundaries
+        are not where expected.
+    WARN
+        Log a warning if any signs are detected that the month boundaries are
+        not where expected.
+    IGNORE
+        Ignore any signs that the month boundaries are not where expected, and
+        proceed with the conversion as normal. This may lead to issues with the
+        output data, so only use this if you know what you are doing.
+    """
+    RAISE = 'raise'
+    WARN = 'warn'
+    IGNORE = 'ignore'
+###END class OnFirstLastDatesNotMonthBoundary
 
 
 LOCATION_DIM_ATTR_NAME: tp.Final[str] = "location_dim"
