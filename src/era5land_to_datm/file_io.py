@@ -161,14 +161,19 @@ def open_era5land_grib(
             )
             raise ValueError(error_msg)
         for _var in era5_ds.data_vars:
+            # We can't index on more than one dimension for a dask-backed array,
+            # so we need to first create a combined array for the first date,
+            # and then assign that to the first date of the dataset.
+            first_date_array: xr.DataArray = (
+                era5_ds[_var]
+                .sel({date_dim: source_first_date})
+                .combine_first(previous_ds[_var])
+            )
             era5_ds[_var].loc[
                 {
                     date_dim: source_first_date,
-                    step_dim: source_step_coords.isel(
-                        {step_dim: slice(0, -1)}
-                    ),
                 }
-            ] = previous_ds[_var].sel({step_dim: slice(0, -1)})
+            ] = first_date_array
     return era5_ds
 ###END def open_era5land_grib
 
