@@ -133,6 +133,7 @@ _ecmwf_collection_titles: tp.Final[dict[EcmwfDatasetId, str]] = {
 
 DATM7_DATAVAR_DTYPE: tp.Final[np.dtype] = np.dtype('float32')
 DATM7_COORD_DTYPE: tp.Final[np.dtype] = np.dtype('float32')
+DATM7_TIME_DTYPE: tp.Final[np.dtype] = np.dtype('float64')
 DATM7_CALENDAR: tp.Final[str] = 'noleap'
 DATM7_NC_FILE_FORMAT: tp.Final[str] = 'NETCDF4'
 
@@ -164,9 +165,3 @@ def make_datm7_time_units(start_time: np.datetime64) -> str:
         .strftime('%Y-%m-%d')
     )
     return f'days since {start_time_string}'
-
-
-DATM7_TIME_ENCODING: tp.Final[NcTimeEncoding] = NcTimeEncoding(
-    units=make_datm7_time_units,
-    calendar=DATM7_CALENDAR,
-)

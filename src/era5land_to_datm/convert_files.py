@@ -14,8 +14,15 @@ convert_monthly_era5_files
     Converts multiple ERA5 Land GRIB files to DATM7 threestream netCDF files,
     assuming one file per calendar month, and handling adjacent files as needed
     for cumulative variables.
-make_datm7_encoding_dict
-    Make a dictionary of encoding settings to use when writing the output DATM7
+process_mask_and_nulls
+    Detect and process masked non-null values and unmasked null values in the
+    source ERA5 Land data, based on a provided mask file. Warns and/or raises
+    errors for these values based on the provided parameters, and can optionally
+    write a file with the locations of unmasked null values, and call
+    `process_unmasked_nulls` to attempt to fill unmasked null values.
+process_unmasked_nulls
+    Attempt to fill unmasked null values in the source ERA5 Land data, given a
+    provided mask.
 
 Attributes
 ----------
