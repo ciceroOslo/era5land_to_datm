@@ -289,12 +289,15 @@ def make_datm7_encoding_dict(
     FILL_VALUE_ATTR: str = '_FillValue'
     FILL_VALUE_FLOAT: float = 1e36
 
-    start_date: np.datetime64 = (
-        output_ds[time_dim]
-        .isel({time_dim: 0})
-        .compute()
-        .item()
-    )
+    start_date: np.datetime64 = np.datetime64(
+        (
+            output_ds[time_dim]
+            .isel({time_dim: 0})
+            .compute()
+            .item()
+        ),
+        'ns',
+    ).astype('datetime64[s]')  # This weird step-wise conversion is needed to make sure we get something that can be converted to a Python datetime object, and which doesn't get turned into a big int
     if callable(time_units):
         time_units = time_units(start_date)
     time_encoding: dict[str, str|float] = {
