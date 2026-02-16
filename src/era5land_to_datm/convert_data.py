@@ -615,8 +615,16 @@ def postprocess_converted_datm_ds(
             f'for target stream {target_stream}...'
         )
         target_ds = target_ds.transpose(*use_dim_order)
-        for _var in target_ds.data_vars:
-            target_ds[_var] = target_ds[_var].transpose(*use_dim_order)
+    for _var in target_ds.data_vars:
+        _var_use_dim_order: list[str] = [
+            dim for dim in use_dim_order if dim in target_ds[_var].dims
+        ]
+        if list(target_ds[_var].dims) != _var_use_dim_order:
+            logger.debug(
+                f'Reordering dimensions for variable {_var} from '
+                f'{target_ds[_var].dims} to {_var_use_dim_order}.'
+            )
+            target_ds[_var] = target_ds[_var].transpose(*_var_use_dim_order)
     logger.debug(
         'Sorting coordinates in ascending order for target stream '
         f'{target_stream}...'
