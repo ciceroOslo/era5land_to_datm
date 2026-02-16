@@ -319,7 +319,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/zlib-1.3.1-hb9d3cd8_2.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/zlib-ng-2.3.2-hceb46e0_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/zstd-1.5.7-hb78ec9c_6.conda
-      - pypi: git+https://github.com/korsbakken/korsbakken_python_utils.git#3ac0370f8190034e2de08bf94b1d6af95f8f2bd6
+      - pypi: git+https://github.com/korsbakken/korsbakken_python_utils.git?tag=v0.5.2#3ac0370f8190034e2de08bf94b1d6af95f8f2bd6
       - pypi: ./
 packages:
 - conda: https://conda.anaconda.org/conda-forge/linux-64/_libgcc_mutex-0.1-conda_forge.tar.bz2
@@ -1289,7 +1289,7 @@ packages:
 - pypi: ./
   name: era5land-to-datm
   version: 0.2.0
-  sha256: 0eab3dca754611716d31b450d7547a1d404ee81e7ff88675232155c53876259b
+  sha256: 4b9ed63d0ec526a42efa59955f073018466f7b644fb593b661979ed00c2024d8
   requires_dist:
   - korsbakken-python-utils[dask] @ git+https://github.com/korsbakken/korsbakken_python_utils.git@v0.5.2
   requires_python: '>=3.13'
@@ -2022,7 +2022,7 @@ packages:
   - pkg:pypi/kiwisolver?source=hash-mapping
   size: 78071
   timestamp: 1762488742381
-- pypi: git+https://github.com/korsbakken/korsbakken_python_utils.git#3ac0370f8190034e2de08bf94b1d6af95f8f2bd6
+- pypi: git+https://github.com/korsbakken/korsbakken_python_utils.git?tag=v0.5.2#3ac0370f8190034e2de08bf94b1d6af95f8f2bd6
   name: korsbakken-python-utils
   version: 0.5.2
   requires_dist:

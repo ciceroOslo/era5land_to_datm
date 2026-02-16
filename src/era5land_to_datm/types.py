@@ -15,10 +15,13 @@ EcmwfDatasetId
 Era5LandVar
     Enumeration of ERA5-Land variables available for download.
 """
+from collections.abc import Callable
+import datetime
 import enum
 import typing as tp
 
 import ecmwf.datastores as ecmwfds
+import numpy as np
 
 
 
@@ -31,9 +34,46 @@ class YearMonth(tp.NamedTuple):
         The year (e.g., 2020).
     month : int
         The month (1-12).
+
+    Class methods
+    -------------
+    range(start: YearMonth, end: YearMonth) -> Iterable[YearMonth]
+        Generate a sequence of YearMonth instances from start to end, inclusive.
     """
     year: int
     month: int
+
+    @classmethod
+    def range(
+            cls,
+            start: tp.Self,
+            end: tp.Self,
+    ) -> tp.Iterator[tp.Self]:
+        """Generate a sequence of YearMonth instances from start to end, inclusive.
+
+        Parameters
+        ----------
+        start : YearMonth
+            The starting YearMonth (inclusive).
+        end : YearMonth
+            The ending YearMonth (inclusive).
+
+        Yields
+        ------
+        YearMonth
+            An iterator of YearMonth instances from start to end, inclusive.
+        """
+        if (start.year, start.month) > (end.year, end.month):
+            raise ValueError('start must be less than or equal to end')
+        current_year: int = start.year
+        current_month: int = start.month
+        while (current_year, current_month) <= (end.year, end.month):
+            yield cls(year=current_year, month=current_month)
+            if current_month == 12:
+                current_month = 1
+                current_year += 1
+            else:
+                current_month += 1
 ###END class YearMonth
 
 
@@ -89,3 +129,39 @@ class EcmwfDatasetId(enum.StrEnum):
 _ecmwf_collection_titles: tp.Final[dict[EcmwfDatasetId, str]] = {
     EcmwfDatasetId.ERA5LANDHRLY: 'ERA5-Land hourly data from 1950 to present',
 }
+
+
+DATM7_DATAVAR_DTYPE: tp.Final[np.dtype] = np.dtype('float32')
+DATM7_COORD_DTYPE: tp.Final[np.dtype] = np.dtype('float32')
+DATM7_TIME_DTYPE: tp.Final[np.dtype] = np.dtype('float64')
+DATM7_CALENDAR: tp.Final[str] = 'noleap'
+DATM7_NC_FILE_FORMAT: tp.Final[str] = 'NETCDF4'
+
+class NcTimeEncoding(tp.TypedDict):
+    units: str | Callable[[np.datetime64], str]
+    calendar: str
+###END class NcTimeEncoding
+
+
+def make_datm7_time_units(start_time: np.datetime64) -> str:
+    """Make time units string for DATM7 time coordinate, given the start time.
+
+    Parameters
+    ----------
+    start_time : np.datetime64
+        The start time of the dataset, which will be used as the reference time
+        in the returned time units string.
+
+    Returns
+    -------
+    str
+        A time units string for the DATM7 time coordinate, with the reference
+        time set to the given start_time. The units will be days since the start
+        of the day to which `start_time` belongs in UTC.
+    """
+    start_time_string: str = (
+        start_time
+        .astype(datetime.datetime)
+        .strftime('%Y-%m-%d')
+    )
+    return f'days since {start_time_string}'
