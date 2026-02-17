@@ -64,6 +64,7 @@ import numpy as np
 import xarray as xr
 
 from .convert_data import (
+    era5_cumulative_vars,
     era5land_from_linear_time,
     era5land_to_linear_time,
     make_datm_ds,
@@ -95,6 +96,9 @@ from .masking import (
     UnmaskedNullsProcessing,
 )
 from .types import YearMonth
+from .variables import (
+    era5_cumulative_vars,
+)
 
 
 
@@ -1515,9 +1519,87 @@ def process_unmasked_nulls(
         )
         raise RuntimeError(error_msg)
 
+    # If we have a precomputed dataset of unmasked null value locations, then
+    # select only the lat/lon locations from that dataset and interpolate NaNs
+    # on the subselected dataset. If so, we need to stack the latitude and
+    # longitude coordinates into a single location dimension, for which we need
+    # a unique name.
+    location_dim: str = 'location'
+    while location_dim in source.dims:
+        location_dim += '_'
+    if unmasked_null_ds is not None:
+        use_subselection: bool = True
+        unmasked_null_location_dim: str = (
+            unmasked_null_ds.attrs[LOCATION_DIM_ATTR_NAME]
+        )
+        source_filled: xr.Dataset = source.sel(
+            (
+                unmasked_null_ds
+                .rename({unmasked_null_location_dim: location_dim})
+                .reset_coords()
+                [[Era5LandDim.LAT, Era5LandDim.LON]]
+            )
+        )
+    else:
+        use_subselection = False
+        source_filled = source.copy(deep=False)
+
     # Fill unmasked null values using linear interpolation along the time
     # dimension.
+
+    # Before converting to to linear time, we need to find which variables are
+    # cumulated
+    cumulative_vars: set[Hashable] = (
+        set(source_filled.data_vars).intersection(era5_cumulative_vars)
+    )
+    if (
+            (len(cumulative_vars) > 0)
+            and (time_layout != ERA5LandTimeLayout.DATE_STEP)
+    ):
+        error_msg: str = (
+            'The source dataset contains cumulative variables, but the time '
+            'layout is not DATE_STEP. Currently, the code only supports '
+            'handling cumulative variables for datasets with 2D DATE_STEP time '
+            'layout, since the decumulation process relies on the presence of a'
+            'step dimension. Please check your source dataset and time layout, '
+            'and ensure that if you have cumulative variables, your time layout'
+            'is DATE_STEP.'
+        )
+        logger.error(
+            msg=error_msg,
+            extra={
+                'cumulative_vars': cumulative_vars,
+                'time_layout': time_layout,
+                'source_files': source_files,
+            },
+        )
+        raise NotImplementedError(error_msg)
+    for _cum_var in cumulative_vars:
+        source_filled[_cum_var] = (
+            xr.concat(
+                [
+                    xr.zeros_like(
+                        source_filled[_cum_var].isel({Era5LandDim.STEP: [0]}),
+                        dtype=source_filled[_cum_var].dtype,
+                    ).assign_coords(
+                        {Era5LandDim.STEP: [np.timedelta64(0, 'ns')]}
+                    ),
+                    source_filled[_cum_var]
+                ],
+                dim=Era5LandDim.STEP,
+            )
+            .interpolate_na(dim=Era5LandDim.STEP, method='linear')
+            .diff(dim=Era5LandDim.STEP, label='upper')
+        )
     if time_layout == ERA5LandTimeLayout.DATE_STEP:
+        # We need to first fill the cumulated variables along the step dimension
+        # to get rid of as many nulls as possible, then decumulate, and then
+        # allow the whole dataset to be linearized. This will result in the
+        # decumulated cumulative variables having nulls only in the last
+        # intradate step, which can then be filled normally after linearization.
+        for _cum_var in cumulative_vars:
+
+
         source = era5land_to_linear_time(
             source=source,
             preserve_source_time_coord=True,
