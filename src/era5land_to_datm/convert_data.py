@@ -305,6 +305,32 @@ def decumulate_era5land_var(
 ###END def decumulate_era5land_var
 
 
+def accumulate_era5land_var(
+        source: xr.DataArray,
+        *,
+        step_dim: str = Era5LandDim.STEP,
+) -> xr.DataArray:
+    """Accumulates ERA5 Land variables along the intra-day step dimension, to
+    produce a cumulative variable where the value at each time step gives the
+    cumulated value for all previous time steps. This is the inverse operation
+    to `decumulate_era5land_var`.
+
+    Parameters
+    ----------
+    source : xr.DataArray
+        The source ERA5 Land variable DataArray. Must have a step dimension.
+    step_dim : str, optional
+        The name of the intra-day step dimension. By default `Era5LandDim.STEP`.
+    """
+    if step_dim not in source.dims:
+        raise ValueError(
+            f'The source DataArray must have a step dimension {step_dim}.'
+        )
+    accumulated: xr.DataArray = source.cumsum(dim=step_dim)
+    return accumulated
+###END def accumulate_era5land_var
+
+
 def era5land_to_linear_time(
         source: xr.Dataset,
         *,
