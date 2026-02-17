@@ -1574,6 +1574,28 @@ def process_unmasked_nulls(
             },
         )
         raise NotImplementedError(error_msg)
+    logger.info(
+        msg=(
+            'Filling unmasked null values using linear interpolation along '
+            'the time dimension.'
+            + (
+                f' Source files: {list(source_files)!s}'
+                if source_files is not None
+                else ' Source files: N/A (source file names not provided)'
+            )
+        ),
+        extra={
+            'processing_method': processing_method,
+            'time_layout': time_layout,
+            'source_files': source_files,
+        },
+    )
+    start_process_time: float = time.process_time()
+    # We need to first fill the cumulated variables along the step dimension
+    # to get rid of as many nulls as possible, then decumulate, and then
+    # allow the whole dataset to be linearized. This will result in the
+    # decumulated cumulative variables having nulls only in the last
+    # intradate step, which can then be filled normally after linearization.
     for _cum_var in cumulative_vars:
         source_filled[_cum_var] = (
             xr.concat(
@@ -1592,37 +1614,12 @@ def process_unmasked_nulls(
             .diff(dim=Era5LandDim.STEP, label='upper')
         )
     if time_layout == ERA5LandTimeLayout.DATE_STEP:
-        # We need to first fill the cumulated variables along the step dimension
-        # to get rid of as many nulls as possible, then decumulate, and then
-        # allow the whole dataset to be linearized. This will result in the
-        # decumulated cumulative variables having nulls only in the last
-        # intradate step, which can then be filled normally after linearization.
-        for _cum_var in cumulative_vars:
-
-
-        source = era5land_to_linear_time(
-            source=source,
+        source_filled = era5land_to_linear_time(
+            source=source_filled,
             preserve_source_time_coord=True,
             preserve_source_time_component_coords=True,
         )
-    logger.info(
-        msg=(
-            'Filling unmasked null values using linear interpolation along '
-            'the linearized time dimension.'
-            + (
-                f' Source files: {list(source_files)!s}'
-                if source_files is not None
-                else ' Source files: N/A (source file names not provided)'
-            )
-        ),
-        extra={
-            'processing_method': processing_method,
-            'time_layout': time_layout,
-            'source_files': source_files,
-        },
-    )
-    start_process_time: float = time.process_time()
-    source_filled = source.where(mask).interpolate_na(
+    source_filled = source_filled.interpolate_na(
         dim=ERA5_LINEARIZED_TIME_DIM,
         method='linear',
     )
@@ -1636,20 +1633,34 @@ def process_unmasked_nulls(
             f'{filling_time_consumed/1000.0:.3G} ms.'
         )
     )
+    # Restore the original time layout if it was originally not linearized.
     if time_layout == ERA5LandTimeLayout.DATE_STEP:
         source_filled = era5land_from_linear_time(
             source=source_filled,
             fast_unstack=True,
         )
-        done_unstacking_time: float = time.process_time()
-        unstacking_time_consumed: float = (
-            done_unstacking_time - done_filling_time
+    # Reaccumulate cumulative variables if needed
+    for _cum_var in cumulative_vars:
+        source_filled[_cum_var] = (
+            source_filled[_cum_var]
+            .cumsum(dim=Era5LandDim.STEP)
         )
-        logger.info(
-            msg=(
-                'Finished unstacking linearized time dimension in '
-                f'{unstacking_time_consumed/1000.0:.3G} ms.'
-            )
+    # Merge the filled dataset back with the original source dataset.
+    # This should unstack the location coordinates back to separate latitude
+    # and longitude dimensions (BUT BEWARE IF THIS CHANGES IN A FUTURE VERSION
+    # OF XARRAY).
+    if use_subselection:
+        source_filled = source.combine_first(source_filled)
+    done_postprocessing_time: float = time.process_time()
+    unstacking_time_consumed: float = (
+        done_postprocessing_time - done_filling_time
+    )
+    logger.info(
+        msg=(
+            'Finished unstacking linearized time dimension, combining '
+            'values and decumulating cumulative variables in '
+            f'{unstacking_time_consumed/1000.0:.3G} ms.'
         )
+    )
     return source_filled
 ### END def process_unmasked_nulls
