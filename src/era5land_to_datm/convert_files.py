@@ -1435,6 +1435,9 @@ def process_unmasked_nulls(
         If True, non-null values in the masked areas in the source dataset will
         be preserved in the returned dataset. If False (the default), masked
         points in the returned Dataset will be set to null values.
+        **NB!** This option may not be reliable at the moment. Please merge
+        masked values from the original back in with the returned Dataset if you
+        require preserving them.
     time_layout : ERA5LandTimeLayout
         The time layout of the source dataset (whether a `time` dimension with
         dates and a `step` dimension with intra-day offsets, or a single
@@ -1623,16 +1626,7 @@ def process_unmasked_nulls(
         dim=ERA5_LINEARIZED_TIME_DIM,
         method='linear',
     )
-    if preserve_masked_values:
-        source_filled = source_filled.combine_first(source)
     done_filling_time: float = time.process_time()
-    filling_time_consumed: float = done_filling_time - start_process_time
-    logger.info(
-        msg=(
-            'Finished filling unmasked null values in '
-            f'{filling_time_consumed/1000.0:.3G} ms.'
-        )
-    )
     # Restore the original time layout if it was originally not linearized.
     # We need to first manually create a MultiIndex, to ensure that the date and
     # step coordinates are correctly unstacked and are one-dimensional.
@@ -1649,6 +1643,13 @@ def process_unmasked_nulls(
             source_filled[_cum_var]
             .cumsum(dim=Era5LandDim.STEP)
         )
+    filling_time_consumed: float = done_filling_time - start_process_time
+    logger.info(
+        msg=(
+            'Finished filling unmasked null values in '
+            f'{filling_time_consumed/1000.0:.3G} ms.'
+        )
+    )
     # Merge the filled dataset back with the original source dataset.
     # This should unstack the location coordinates back to separate latitude
     # and longitude dimensions (BUT BEWARE IF THIS CHANGES IN A FUTURE VERSION
