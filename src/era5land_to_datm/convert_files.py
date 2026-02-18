@@ -1619,6 +1619,12 @@ def process_unmasked_nulls(
                 ],
                 dim=Era5LandDim.STEP,
             )
+            # Concatenation adds an extra chunk for dask arrays, so we need to
+            # rechunk into a single chunk along the step dimension
+            .pipe(
+                lambda da: da.chunk({Era5LandDim.STEP: -1})
+                    if da.chunks is not None else da
+            )
             .interpolate_na(dim=Era5LandDim.STEP, method='linear')
             .diff(dim=Era5LandDim.STEP, label='upper')
         )
