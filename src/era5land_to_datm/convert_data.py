@@ -463,12 +463,21 @@ def era5land_to_linear_time(
         source
         .stack(
             {temp_time_dim_name: (source_date_dim, source_step_dim)},
-            create_index=create_index,
+            create_index=False,
         )
         .pipe(set_index_func)
         .pipe(transform_time_component_coords_func)
         .rename({temp_time_dim_name: str(output_time_dim)})
     )
+    if create_index:
+        output_ds = output_ds.set_index(
+            {
+                str(output_time_dim): [
+                    source_time_component_coords_rename[source_date_dim],
+                    source_time_component_coords_rename[source_step_dim],
+                ]
+            }
+        )
     return output_ds
 ###END def era5land_to_linear_time
 
@@ -590,7 +599,7 @@ def era5land_from_linear_time(
             (target_time_coord_name is None)
             or (target_time_coord_name in target_ds.variables)
     ):
-        target_ds = target_ds.drop_vars(source_time_dim)
+        target_ds = target_ds.drop_vars(source_time_dim, errors='ignore')
     else:
         target_ds = target_ds.rename({source_time_dim: target_time_coord_name})
     target_ds = target_ds.rename(

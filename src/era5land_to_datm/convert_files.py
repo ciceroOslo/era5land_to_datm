@@ -74,6 +74,7 @@ from .dimensions import (
     Datm7Dim,
     ERA5_LINEARIZED_TIME_DIM,
     Era5LandDim,
+    Era5LandLinearizedTimeDimId,
     ERA5LandTimeLayout,
 )
 from .file_io import (
@@ -1617,7 +1618,6 @@ def process_unmasked_nulls(
             source=source_filled,
             preserve_source_time_coord=True,
             preserve_source_time_component_coords=True,
-            create_index=True,
         )
     source_filled = source_filled.interpolate_na(
         dim=ERA5_LINEARIZED_TIME_DIM,
@@ -1634,9 +1634,21 @@ def process_unmasked_nulls(
         )
     )
     # Restore the original time layout if it was originally not linearized.
+    # We need to first manually create a MultiIndex, to ensure that the date and
+    # step coordinates are correctly unstacked and are one-dimensional.
     if time_layout == ERA5LandTimeLayout.DATE_STEP:
         source_filled = era5land_from_linear_time(
-            source=source_filled,
+            source=(
+                source_filled
+                .set_index(
+                    {
+                        Era5LandLinearizedTimeDimId.TIME: [
+                            Era5LandLinearizedTimeDimId.DATE,
+                            Era5LandLinearizedTimeDimId.STEP,
+                        ]
+                    }
+                )
+            ),
             fast_unstack=False,
         )
     # Reaccumulate cumulative variables if needed
