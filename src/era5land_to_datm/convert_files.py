@@ -64,7 +64,6 @@ import numpy as np
 import xarray as xr
 
 from .convert_data import (
-    era5_cumulative_vars,
     era5land_from_linear_time,
     era5land_to_linear_time,
     make_datm_ds,
@@ -1618,6 +1617,7 @@ def process_unmasked_nulls(
             source=source_filled,
             preserve_source_time_coord=True,
             preserve_source_time_component_coords=True,
+            create_index=True,
         )
     source_filled = source_filled.interpolate_na(
         dim=ERA5_LINEARIZED_TIME_DIM,
@@ -1637,7 +1637,7 @@ def process_unmasked_nulls(
     if time_layout == ERA5LandTimeLayout.DATE_STEP:
         source_filled = era5land_from_linear_time(
             source=source_filled,
-            fast_unstack=True,
+            fast_unstack=False,
         )
     # Reaccumulate cumulative variables if needed
     for _cum_var in cumulative_vars:

@@ -341,6 +341,7 @@ def era5land_to_linear_time(
         preserve_source_time_coord: bool = False,
         preserve_source_time_component_coords: bool = False,
         source_time_component_coords_rename: Mapping[str, str] | None = None,
+        create_index: bool = False,
 ) -> xr.Dataset:
     """Converts an ERA5 Land Dataset with a two-dimensional date+intradate step
     time layout to a Dataset with a linearized one-dimensional time layout. No
@@ -398,6 +399,14 @@ def era5land_to_linear_time(
         empty dict if you do not want any renaming, but note that this will
         most likely result in an error because of name collisions between the
         source date coordinate and the new time dimension name.
+    create_index : bool, optional
+        Whether to create a MultiIndex for the new linearized time dimension,
+        when stacking the source date and step dimensions. The date and step
+        coordinates will in any case be preserved as regular coordinates even if
+        this is False. Setting it to True will create a MultiIndex, which can be
+        convenient and may be required for some alignment and computational
+        operations, but can be computationally expensive for large stacked
+        dimensions.
 
     Returns
     -------
@@ -454,7 +463,7 @@ def era5land_to_linear_time(
         source
         .stack(
             {temp_time_dim_name: (source_date_dim, source_step_dim)},
-            create_index=False,
+            create_index=create_index,
         )
         .pipe(set_index_func)
         .pipe(transform_time_component_coords_func)
