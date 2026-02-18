@@ -1640,14 +1640,6 @@ def process_unmasked_nulls(
         source_filled = era5land_from_linear_time(
             source=(
                 source_filled
-                .set_index(
-                    {
-                        Era5LandLinearizedTimeDimId.TIME: [
-                            Era5LandLinearizedTimeDimId.DATE,
-                            Era5LandLinearizedTimeDimId.STEP,
-                        ]
-                    }
-                )
             ),
             fast_unstack=False,
         )
@@ -1661,6 +1653,7 @@ def process_unmasked_nulls(
     # This should unstack the location coordinates back to separate latitude
     # and longitude dimensions (BUT BEWARE IF THIS CHANGES IN A FUTURE VERSION
     # OF XARRAY).
+    source_filled_before_combining = source_filled.copy(deep=False)
     if use_subselection:
         source_filled = source.combine_first(source_filled)
     done_postprocessing_time: float = time.process_time()
