@@ -1653,20 +1653,40 @@ def process_unmasked_nulls(
     # This should unstack the location coordinates back to separate latitude
     # and longitude dimensions (BUT BEWARE IF THIS CHANGES IN A FUTURE VERSION
     # OF XARRAY).
+    logger.debug('Copying source_filled before combining...')
     source_filled_before_combining = source_filled.copy(deep=False)
     if use_subselection:
-        source_filled = source.combine_first(source_filled)
+        # We need to unstack the location dimension back to latitude and
+        # longitude dimensions to make it aligned with the original source
+        # dataset for combining.
+        logger.debug('Unstacking source_filled for combining...')
+        source_filled_unstacked = (
+            source_filled
+            .set_index({location_dim: [Era5LandDim.LAT, Era5LandDim.LON]})
+            .unstack(location_dim)
+        )
+        # Loading the unstacked filled dataset to try to avoid extremely slow
+        # performance during combine step
+        logger.debug('Loading source_filled_unstacked before combining...')
+        source_filled_unstacked.load()
+        # Reindex the unstacked dataset to align with source
+        logger.debug('Reindexing source_filled_unstacked for combining...')
+        source_filled_unstacked = source_filled_unstacked.reindex_like(source)
+        logger.debug('Starting to combine source_filled with original source dataset...')
+        source_filled = source.combine_first(source_filled_unstacked)
+        logger.debug('Finished combining source_filled with original source dataset.')
     # DEBUG 2026-02-18. Compute the datasets to make sure we can access them
     # during debugging without having to restart execution to get results from
     # threads.
+    logger.debug('Loading source...')
     source.load()
+    logger.debug('Loading source_filled_before_combining...')
     source_filled_before_combining.load()
+    logger.debug('Loading source_filled...')
     source_filled.load()
-    source_filled_before_combining_unstacked = (
-        source_filled_before_combining
-        .set_index({location_dim: [Era5LandDim.LAT, Era5LandDim.LON]})
-        .unstack(location_dim)
-    )
+    if use_subselection:
+        logger.debug('Loading source_filled_unstacked...')
+        source_filled_unstacked.load()
     # END DEBUG
     done_postprocessing_time: float = time.process_time()
     unstacking_time_consumed: float = (
