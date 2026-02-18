@@ -1656,6 +1656,18 @@ def process_unmasked_nulls(
     source_filled_before_combining = source_filled.copy(deep=False)
     if use_subselection:
         source_filled = source.combine_first(source_filled)
+    # DEBUG 2026-02-18. Compute the datasets to make sure we can access them
+    # during debugging without having to restart execution to get results from
+    # threads.
+    source.load()
+    source_filled_before_combining.load()
+    source_filled.load()
+    source_filled_before_combining_unstacked = (
+        source_filled_before_combining
+        .set_index({location_dim: [Era5LandDim.LAT, Era5LandDim.LON]})
+        .unstack(location_dim)
+    )
+    # END DEBUG
     done_postprocessing_time: float = time.process_time()
     unstacking_time_consumed: float = (
         done_postprocessing_time - done_filling_time
