@@ -1599,6 +1599,9 @@ def process_unmasked_nulls(
     # allow the whole dataset to be linearized. This will result in the
     # decumulated cumulative variables having nulls only in the last
     # intradate step, which can then be filled normally after linearization.
+    # DEUBUG 2026-02-18: Check values of FSDS during decumulation etc.
+    debug_var: str = 'ssrd'
+    ssrd_before_filling = source_filled[debug_var].compute()
     for _cum_var in cumulative_vars:
         source_filled[_cum_var] = (
             xr.concat(
@@ -1616,16 +1619,19 @@ def process_unmasked_nulls(
             .interpolate_na(dim=Era5LandDim.STEP, method='linear')
             .diff(dim=Era5LandDim.STEP, label='upper')
         )
+    ssrd_after_decumulation = source_filled[debug_var].compute()
     if time_layout == ERA5LandTimeLayout.DATE_STEP:
         source_filled = era5land_to_linear_time(
             source=source_filled,
             preserve_source_time_coord=True,
             preserve_source_time_component_coords=True,
         )
+    ssrd_after_linearization = source_filled[debug_var].compute()
     source_filled = source_filled.interpolate_na(
         dim=ERA5_LINEARIZED_TIME_DIM,
         method='linear',
     )
+    ssrd_after_second_filling = source_filled[debug_var].compute()
     done_filling_time: float = time.process_time()
     # Restore the original time layout if it was originally not linearized.
     # We need to first manually create a MultiIndex, to ensure that the date and
@@ -1637,12 +1643,14 @@ def process_unmasked_nulls(
             ),
             fast_unstack=False,
         )
+    ssrd_after_unstacking = source_filled[debug_var].compute()
     # Reaccumulate cumulative variables if needed
     for _cum_var in cumulative_vars:
         source_filled[_cum_var] = (
             source_filled[_cum_var]
             .cumsum(dim=Era5LandDim.STEP)
         )
+    ssrd_after_reaccumulation = source_filled[debug_var].compute()
     filling_time_consumed: float = done_filling_time - start_process_time
     logger.info(
         msg=(
