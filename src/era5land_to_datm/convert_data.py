@@ -305,6 +305,32 @@ def decumulate_era5land_var(
 ###END def decumulate_era5land_var
 
 
+def accumulate_era5land_var(
+        source: xr.DataArray,
+        *,
+        step_dim: str = Era5LandDim.STEP,
+) -> xr.DataArray:
+    """Accumulates ERA5 Land variables along the intra-day step dimension, to
+    produce a cumulative variable where the value at each time step gives the
+    cumulated value for all previous time steps. This is the inverse operation
+    to `decumulate_era5land_var`.
+
+    Parameters
+    ----------
+    source : xr.DataArray
+        The source ERA5 Land variable DataArray. Must have a step dimension.
+    step_dim : str, optional
+        The name of the intra-day step dimension. By default `Era5LandDim.STEP`.
+    """
+    if step_dim not in source.dims:
+        raise ValueError(
+            f'The source DataArray must have a step dimension {step_dim}.'
+        )
+    accumulated: xr.DataArray = source.cumsum(dim=step_dim)
+    return accumulated
+###END def accumulate_era5land_var
+
+
 def era5land_to_linear_time(
         source: xr.Dataset,
         *,
@@ -315,6 +341,7 @@ def era5land_to_linear_time(
         preserve_source_time_coord: bool = False,
         preserve_source_time_component_coords: bool = False,
         source_time_component_coords_rename: Mapping[str, str] | None = None,
+        create_index: bool = False,
 ) -> xr.Dataset:
     """Converts an ERA5 Land Dataset with a two-dimensional date+intradate step
     time layout to a Dataset with a linearized one-dimensional time layout. No
@@ -372,6 +399,14 @@ def era5land_to_linear_time(
         empty dict if you do not want any renaming, but note that this will
         most likely result in an error because of name collisions between the
         source date coordinate and the new time dimension name.
+    create_index : bool, optional
+        Whether to create a MultiIndex for the new linearized time dimension,
+        when stacking the source date and step dimensions. The date and step
+        coordinates will in any case be preserved as regular coordinates even if
+        this is False. Setting it to True will create a MultiIndex, which can be
+        convenient and may be required for some alignment and computational
+        operations, but can be computationally expensive for large stacked
+        dimensions.
 
     Returns
     -------
@@ -434,6 +469,15 @@ def era5land_to_linear_time(
         .pipe(transform_time_component_coords_func)
         .rename({temp_time_dim_name: str(output_time_dim)})
     )
+    if create_index:
+        output_ds = output_ds.set_index(
+            {
+                str(output_time_dim): [
+                    source_time_component_coords_rename[source_date_dim],
+                    source_time_component_coords_rename[source_step_dim],
+                ]
+            }
+        )
     return output_ds
 ###END def era5land_to_linear_time
 
@@ -555,7 +599,7 @@ def era5land_from_linear_time(
             (target_time_coord_name is None)
             or (target_time_coord_name in target_ds.variables)
     ):
-        target_ds = target_ds.drop_vars(source_time_dim)
+        target_ds = target_ds.drop_vars(source_time_dim, errors='ignore')
     else:
         target_ds = target_ds.rename({source_time_dim: target_time_coord_name})
     target_ds = target_ds.rename(
