@@ -98,6 +98,7 @@ from .masking import (
 from .types import YearMonth
 from .variables import (
     era5_cumulative_vars,
+    era5land_grib_varnames,
 )
 
 
@@ -1553,7 +1554,9 @@ def process_unmasked_nulls(
     # Before converting to to linear time, we need to find which variables are
     # cumulated
     cumulative_vars: set[Hashable] = (
-        set(source_filled.data_vars).intersection(era5_cumulative_vars)
+        set(source_filled.data_vars).intersection(
+            era5land_grib_varnames[_cumvar] for _cumvar in era5_cumulative_vars
+        )
     )
     if (
             (len(cumulative_vars) > 0)
