@@ -227,6 +227,17 @@ def write_datm_nc(
         )
     if encoding_dict is None:
         encoding_dict = make_datm7_encoding_dict(ds)
+    if encoding_dict.get(Datm7Dim.TIME, {}).get('calendar') == 'noleap':
+        # Calendar may have been set to noleap even if the source data contain
+        # February 29, so drop that date to avoid errors when writing to netCDF.
+        time_arr: xr.DataArray = ds[Datm7Dim.TIME]
+        ds = ds.sel(
+            {
+                Datm7Dim.TIME: (
+                    ~((time_arr.dt.month == 2) & (time_arr.dt.day == 29))
+                )
+            }
+        )
     ds.to_netcdf(
         path=output_file,
         mode='w',
