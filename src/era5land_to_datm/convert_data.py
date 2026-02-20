@@ -261,6 +261,8 @@ def decumulate_era5land_var(
         source: xr.DataArray,
         *,
         step_dim: str = Era5LandDim.STEP,
+        force_non_negative: bool = False,
+        non_negative_error_rtol: float|None = 1e-5,
 ) -> xr.DataArray:
     """Differences cumulative ERA5 Land variables along the intra-day step
     dimension, to produce a DataArray where each value gives the cumulated value
@@ -280,6 +282,19 @@ def decumulate_era5land_var(
         dimension.
     step_dim : str, optional
         The name of the intra-day step dimension. By default `Era5LandDim.STEP`.
+    force_non_negative : bool, optional
+        The original ERA5 Land data set has some points where the cumulative
+        value of a strictly positive variable (solar downward radiation)
+        decreases from one time step to the next, which leads to negative values
+        for the difference, but should be impossible. If this parameter is True,
+        negative differences will be set to zero, as long as the threshold does
+        not exceed that set by `non_negative_error_rtol`. By default False.
+    non_negative_error_rtol : float, optional
+        The relative tolerance threshold for setting negative differences to
+        zero when `force_non_negative` is True. If the absolute value of a
+        negative difference divided by the cumulated value at the same time
+        step exceeds this threshold, a ValueError will be raised. By default
+        1e-5. Set to None to allow negative differences of any relative size.
     """
     if step_dim not in source.dims:
         raise ValueError(
@@ -301,6 +316,26 @@ def decumulate_era5land_var(
         ],
         dim=step_dim,
     )
+    if force_non_negative:
+        logger.debug(
+            'Forcing negative differences in cumulated variables to zero...'
+        )
+        decumulaated_original: xr.DataArray = decumulated
+        decumulated = decumulated.clip(min=0)
+        if non_negative_error_rtol is not None:
+            relative_errors = (
+                (decumulated - decumulaated_original).abs()
+                / source
+            )
+            max_relative_error: float = relative_errors.max().compute().item()
+            if not max_relative_error <= non_negative_error_rtol:
+                msg: str = (
+                    f'Negative differences exceed the relative error threshold '
+                    f'for force_non_negative: {max_relative_error} > '
+                    f'{non_negative_error_rtol}.'
+                )
+                logger.error(msg)
+                raise ValueError(msg)
     return decumulated
 ###END def decumulate_era5land_var
 
