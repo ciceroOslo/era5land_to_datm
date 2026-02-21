@@ -32,6 +32,7 @@ from .types import (
     DATM7_DATAVAR_DTYPE,
     DATM7_NC_FILE_FORMAT,
     DATM7_TIME_DTYPE,
+    DaskChunkSpec,
     make_datm7_time_units,
 )
 
@@ -45,7 +46,8 @@ def open_era5land_grib(
         *,
         next_file: Path|None = None,
         previous_file: Path|None = None,
-        chunks: dict|int|tp.Literal['auto']|None = 'auto',
+        chunks: DaskChunkSpec|None|tp.Literal['norway_rect_0.1x0.1'] \
+            = 'norway_rect_0.1x0.1',
         date_dim: str = Era5LandDim.DATE,
         step_dim: str = Era5LandDim.STEP,
 ) -> xr.Dataset:
@@ -66,10 +68,13 @@ def open_era5land_grib(
         given, it will be lazily opened, and the last date will be extracted and
         concatenated to the main dataset along the time dimension. Optional, by
         default None.
-    chunks : dict | int | 'auto' | None, optional
+    chunks : dict | int | 'auto' | 'norway_rect_0.1x0.1' | None, optional
         Chunking option for xarray when opening the dataset. Passed directly to
-        `xarray.open_dataset()`. By default 'auto'. To disable chunking, set to
+        `xarray.open_dataset()`. To disable chunking, set to
         False. In order to use xarray's lazy loading without dask, set to None.
+        By default equal to `norway_rect_0.1x0.1', which attempts to optimize
+        chunking for a 0.1x0.1 degree rectangular grid that covers Norway and
+        rivers flowing out of Norway, from 4E to 32E and from 57N to 72N.
     date_dim : str, optional
         Name of the time/date dimension in the ERA5 Land dataset. By default
         given by the string enum `Era5LandDim.DATE`.
@@ -90,6 +95,13 @@ def open_era5land_grib(
         match the *last* intra-date time step in the next file, or if the next
         file contains variables that are not present in the source file.
     """
+    if isinstance(chunks, str) and chunks == 'norway_rect_0.1x0.1':
+        chunks = {
+            Era5LandDim.DATE: 1,
+            Era5LandDim.STEP: 1,
+            Era5LandDim.LAT: 7,
+            Era5LandDim.LON: 14,
+        }
     era5_ds: xr.Dataset = xr.open_dataset(
         file,
         chunks=chunks,
