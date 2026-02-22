@@ -197,6 +197,7 @@ def make_datm_ds(
         _cum_varname = era5land_grib_varnames[_cum_var]
         source_decumulated[_cum_varname] = decumulate_era5land_var(
             source[_cum_varname],
+            force_non_negative=True,
         )
 
     if time_layout == ERA5LandTimeLayout.DATE_STEP:
