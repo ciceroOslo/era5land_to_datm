@@ -321,12 +321,19 @@ def decumulate_era5land_var(
         logger.debug(
             'Forcing negative differences in cumulated variables to zero...'
         )
-        decumulaated_original: xr.DataArray = decumulated
+        decumulated_original: xr.DataArray = decumulated
         decumulated = decumulated.clip(min=0)
         if non_negative_error_rtol is not None:
+            # Take the difference divided by the average of the first and second
+            # term in the difference, since one of them might be zero.
             relative_errors = (
-                (decumulated - decumulaated_original).abs()
-                / source
+                np.abs(decumulated - decumulated_original)
+                / (
+                    (
+                        source.shift({step_dim: 1})
+                        + source.isel({step_dim: slice(1, None)})
+                    ) / 2.0
+                )
             )
             max_relative_error: float = relative_errors.max().compute().item()
             if not max_relative_error <= non_negative_error_rtol:
