@@ -258,13 +258,14 @@ def make_datm_ds(
 ###END def make_datm_ds
 
 
-def decumulate_era5land_var(
-        source: xr.DataArray,
+def decumulate_era5land_var[_XrObj: (xr.DataArray, xr.Dataset)](
+        source: _XrObj,
         *,
-        step_dim: str = Era5LandDim.STEP,
-        force_non_negative: bool = False,
-        non_negative_error_rtol: float|None = 1e-5,
-) -> xr.DataArray:
+        step_dim: Hashable = Era5LandDim.STEP,
+        force_non_negative: bool|Mapping[Hashable, bool] = False,
+        non_negative_error_rtol: float|Mapping[Hashable, float]|None = 1e-5,
+        non_negative_error_atol: float|Mapping[Hashable, float]|None = None,
+) -> _XrObj:
     """Differences cumulative ERA5 Land variables along the intra-day step
     dimension, to produce a DataArray where each value gives the cumulated value
     for the previous time step only. The value of each time step can then be
@@ -278,25 +279,69 @@ def decumulate_era5land_var(
 
     Parameters
     ----------
-    source : xr.DataArray
+    source : xr.DataArray | xr.Dataset
         The source ERA5 Land cumulative variable DataArray. Must have a step
         dimension.
     step_dim : str, optional
         The name of the intra-day step dimension. By default `Era5LandDim.STEP`.
-    force_non_negative : bool, optional
+    force_non_negative : bool or Mapping[Hashable, bool], optional
         The original ERA5 Land data set has some points where the cumulative
         value of a strictly positive variable (solar downward radiation)
         decreases from one time step to the next, which leads to negative values
         for the difference, but should be impossible. If this parameter is True,
         negative differences will be set to zero, as long as the threshold does
-        not exceed that set by `non_negative_error_rtol`. By default False.
-    non_negative_error_rtol : float, optional
+        not exceed that set by `non_negative_error_rtol`. If `source` is a
+        Dataset, this variable can also be specified as a dict or mapping from
+        variable names to bool values. By default False.
+    non_negative_error_rtol : float or Mapping[Hashable, float], optional
         The relative tolerance threshold for setting negative differences to
         zero when `force_non_negative` is True. If the absolute value of a
         negative difference divided by the cumulated value at the same time
         step exceeds this threshold, a ValueError will be raised. By default
         1e-5. Set to None to allow negative differences of any relative size.
+        If `source` is a Dataset, this parameter can also be specified as a dict
+        or Mapping from variable names to float values, in which case the given
+        values will be used per variable.
+    non_negative_error_atol : float or Mapping[Hashable, float], optional
+        Absolute tolerance threshod for setting negative differences to zero
+        when `force_non_negative` is True. If the absolute value of a negative
+        number that is forced to zero is greater than this threshold, a
+        ValueError is raised. If both `non_negative_error_rtol` and
+        `non_negative_error_atol` are specified, the test will only fail if a
+        number falls outside *both* the relative *and* the absolute range. This
+        is particularly useful in order to set a meaningful threshod for numbers
+        where one of the source values is zero and the other is a very small
+        negative number caused by numerical precision issues.
     """
+    if (
+            isinstance(source, xr.DataArray)
+            and any(
+                isinstance(_param, Mapping) for _param in (
+                    force_non_negative,
+                    non_negative_error_rtol,
+                    non_negative_error_atol,
+                )
+            )
+    ):
+        error_msg: str = (
+            'Function `decumulate_era5land_var` received an xarray.DataArray '
+            'as source, but at least one of the parameters '
+            '`force_non_negative`, `non_negative_error_rtol` and '
+            '`non_negative_error_atol` is a mapping. These must all be scalar '
+            'numbers when `source` is a DataArray and not a Dataset.'
+        )
+        logger.error(
+            msg=error_msg,
+            extra={
+                'params': {
+                    'source_type': type(source),
+                    'force_non_negative': force_non_negative,
+                    'non_negative_error_rtol': non_negative_error_rtol,
+                    'non_negative_error_atol': non_negative_error_atol,
+                }
+            }
+        )
+        raise TypeError(error_msg)
     if step_dim not in source.dims:
         raise ValueError(
             f'The source DataArray must have a step dimension {step_dim}.'
@@ -307,35 +352,103 @@ def decumulate_era5land_var(
         source = source.persist()
     else:
         source = source.load()
-    decumulated: xr.DataArray = xr.concat(
+    decumulated: _XrObj = xr.concat(
         [
-            source.isel({step_dim: 0}),
+            source.isel({step_dim: [0]}),
             source.diff(
                 dim=step_dim,
                 label='upper',
             ),
         ],
+        data_vars='minimal',
+        coords='minimal',
+        compat='override',
+        combine_attrs='override',
         dim=step_dim,
     )
     if force_non_negative:
         logger.debug(
             'Forcing negative differences in cumulated variables to zero...'
         )
-        decumulated_original: xr.DataArray = decumulated
-        decumulated = decumulated.clip(min=0)
-        if non_negative_error_rtol is not None:
+        decumulated_original: _XrObj = decumulated
+        if (
+                isinstance(decumulated, xr.Dataset)
+                and isinstance(force_non_negative, Mapping)
+        ):
+            decumulated = decumulated.assign(
+                {
+                    _var: decumulated[_var].clip(min=0)
+                    for _var in force_non_negative
+                }
+            )
+        else:
+            decumulated = decumulated.clip(min=0)
+        if (
+                (non_negative_error_rtol is not None)
+                or (non_negative_error_atol is not None)
+        ):
             # Take the difference divided by the average of the first and second
             # term in the difference, since one of them might be zero.
-            relative_errors = (
-                np.abs(decumulated - decumulated_original)
-                / (
-                    (
-                        source.shift({step_dim: 1})
-                        + source.isel({step_dim: slice(1, None)})
-                    ) / 2.0
+            if isinstance(non_negative_error_rtol, Mapping):
+                rtol_limit: xr.Dataset|float|None = xr.Dataset(
+                    non_negative_error_rtol
                 )
-            )
-            max_relative_error: float = relative_errors.max().compute().item()
+            else:
+                rtol_limit: xr.Dataset|float|None = non_negative_error_rtol
+            if isinstance(non_negative_error_atol, Mapping):
+                atol_limit: xr.Dataset|float|None = xr.Dataset(
+                    non_negative_error_atol
+                )
+            else:
+                atol_limit: xr.Dataset|float|None = non_negative_error_atol
+            if rtol_limit is not None:
+                relative_errors = (
+                    np.abs(decumulated - decumulated_original)
+                    / (
+                        (
+                            source.shift({step_dim: 1})
+                            + source.isel({step_dim: slice(1, None)})
+                        ) / 2.0
+                    )
+                )
+                max_relative_error: _XrObj = relative_errors.max()
+                if isinstance(rtol_limit, xr.Dataset):
+                    rtol_passed: bool = not (
+                        max_relative_error
+                        .pipe(lambda _ds: _ds > rtol_limit)
+                        .to_dataarray(dim='_______var')
+                        .any()
+                        .item()
+                    )
+                else:
+                    rtol_passed: bool = (
+                        max_relative_error
+                        .pipe(lambda _arr: _arr > rtol_limit)
+                        .any()
+                        .item()
+                    )
+            else:
+                rtol_passed: bool = True
+            if atol_limit is not None:
+                abs_errors = np.abs(decumulated - decumulated_original)
+                max_abs_error: _XrObj = abs_errors.max()
+                if isinstance(atol_limit, xr.Dataset):
+                    atol_passed: bool = not (
+                        max_abs_error
+                        .pipe(lambda _ds: _ds > atol_limit)
+                        .to_dataarray(dim='_______var')
+                        .any()
+                        .item()
+                    )
+                else:
+                    atol_passed: bool = (
+                        max_abs_error
+                        .pipe(lambda _arr: _arr > atol_limit)
+                        .any()
+                        .item()
+                    )
+            else:
+                atol_passed: bool = True
             if not max_relative_error <= non_negative_error_rtol:
                 msg: str = (
                     f'Negative differences exceed the relative error threshold '
