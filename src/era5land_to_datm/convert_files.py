@@ -59,6 +59,8 @@ import typing as tp
 from typing import NamedTuple
 import warnings
 
+import dask
+import dask.distributed
 from korsbakken_python_utils.containers.dataobject import UniformTypeDataObject
 import numpy as np
 import xarray as xr
@@ -260,6 +262,8 @@ def convert_era5_file(
         less parallalism and higher memory usage. By default False.
     """
     if not disable_dask:
+        cluster = dask.distributed.LocalCluster()
+        client: dask.distributed.Client = cluster.get_client()
         from korsbakken_python_utils.dask_utils import (
             get_registered_progress_bars,
             set_global_progress_bar,

@@ -96,12 +96,13 @@ def open_era5land_grib(
         file contains variables that are not present in the source file.
     """
     if isinstance(chunks, str) and chunks == 'norway_rect_0.1x0.1':
-        chunks = {
-            Era5LandDim.DATE: 1,
-            Era5LandDim.STEP: 1,
-            Era5LandDim.LAT: 7,
-            Era5LandDim.LON: 14,
-        }
+        # chunks = {
+        #     Era5LandDim.DATE: 1,
+        #     Era5LandDim.STEP: 1,
+        #     Era5LandDim.LAT: 7,
+        #     Era5LandDim.LON: 14,
+        # }
+        chunks = 'auto'
     era5_ds: xr.Dataset = xr.open_dataset(
         file,
         chunks=chunks,
