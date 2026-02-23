@@ -319,9 +319,6 @@ def main() -> None:
         logger.info(
             'Fnished processing, closing client and shutting down cluster...'
         )
-        client.retire_workers()
-        time.sleep(3)
-        logger.info('Attempted to retire workers, exiting...')
 
 ###END def main
 
