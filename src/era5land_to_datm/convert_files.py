@@ -262,17 +262,12 @@ def convert_era5_file(
         less parallalism and higher memory usage. By default False.
     """
     if not disable_dask:
-        cluster = dask.distributed.LocalCluster()
-        client: dask.distributed.Client|None = cluster.get_client()
         from korsbakken_python_utils.dask_utils import (
             get_registered_progress_bars,
             set_global_progress_bar,
         )
         if len(get_registered_progress_bars()) == 0:
             set_global_progress_bar()
-    else:
-        cluster = None
-        client: dask.distributed.Client|None = None
     if any(
         _round_to is not None and (
             not isinstance(_round_to, (int, float))
@@ -445,12 +440,6 @@ def convert_era5_file(
         )
         logger.info(f'    Finished writing {_target_stream.value}.')
     logger.info('Finished converting ERA5 Land GRIB file.')
-    if client is not None:
-        logger.info('Closing distibuted Client...')
-        client.retire_workers()
-        time.sleep(3)
-        client.close()
-        logger.info('Client closed.')
 ###END def convert_era5_file
 
 
