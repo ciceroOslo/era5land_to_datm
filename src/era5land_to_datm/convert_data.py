@@ -433,10 +433,10 @@ def decumulate_era5land_var[_XrObj: (xr.DataArray, xr.Dataset)](
                             + source.isel({step_dim: slice(1, None)})
                         ) / 2.0
                     )
-                ).max()
+                ).max().compute()
                 rtol_passed: tp.Final[xr.DataArray|xr.Dataset] = (
                     max_relative_error <= rtol_limit
-                )
+                ).compute()
                 logger.debug(
                     'Results of relative tolerance check:\n'
                     f'  - max_relative_error = {str(max_relative_error)}'
@@ -470,10 +470,10 @@ def decumulate_era5land_var[_XrObj: (xr.DataArray, xr.Dataset)](
             if atol_limit is not None:
                 max_abs_error: tp.Final[_XrObj] = (
                     np.abs(decumulated - decumulated_original)
-                )
+                ).max().compute()
                 atol_passed: tp.Final[xr.DataArray|xr.Dataset] = (
                     max_abs_error <= atol_limit
-                )
+                ).compute()
                 logger.debug(
                     'Results of absolute tolerance check:\n'
                     f'  - max_abs_error = {str(max_abs_error)}'
@@ -524,11 +524,11 @@ def decumulate_era5land_var[_XrObj: (xr.DataArray, xr.Dataset)](
                     if isinstance(_obj, xr.Dataset):
                         return {
                             _var: _value['data']
-                            for _var, _value in _obj.to_dict()['data_vars'].items()
+                            for _var, _value in _obj.compute().to_dict()['data_vars'].items()
                         }
                     else:
                         try:
-                            return _obj.item()
+                            return _obj.compute().item()
                         except (TypeError, AttributeError) as _err:
                             raise RuntimeError(
                                 'Excpected an xarray.DataArray or other xarray '
