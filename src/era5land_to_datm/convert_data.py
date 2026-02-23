@@ -190,15 +190,23 @@ def make_datm_ds(
             f'{target_stream}: {cumulative_required_vars}'
         )
     source_decumulated: xr.Dataset = source.copy(deep=False)
-    for _cum_var in cumulative_required_vars:
+    if len(cumulative_required_vars) > 0:
+        cum_var_names: tp.Final[list[str]] = [
+            era5land_grib_varnames[_cum_var]
+            for _cum_var in cumulative_required_vars
+        ]
         logger.debug(
-            f'    Decumulating {era5land_grib_varnames[_cum_var]}...'
+            f'    Decumulating variables "{'", "'.join(cum_var_names)}"...'
         )
-        _cum_varname = era5land_grib_varnames[_cum_var]
-        source_decumulated[_cum_varname] = decumulate_era5land_var(
-            source[_cum_varname],
-            force_non_negative=True,
+        source_decumulated = source_decumulated.assign(
+            decumulate_era5land_var(
+                source[cum_var_names],
+                force_non_negative=True,
+                non_negative_error_rtol=1e-5,
+                non_negative_error_atol=1e-6,
+            ),
         )
+        logger.debug(f'    Finished decumulating variables.')
 
     if time_layout == ERA5LandTimeLayout.DATE_STEP:
         logger.debug(
