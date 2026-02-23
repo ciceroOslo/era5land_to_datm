@@ -449,6 +449,27 @@ def decumulate_era5land_var[_XrObj: (xr.DataArray, xr.Dataset)](
                     )
             else:
                 atol_passed: bool = True
+            if not (rtol_passed or atol_passed):
+                max_relative_error_obj: float|dict[Hashable, float] = (
+                    {_var: _value['data'] for _var, _value in max_relative_error.to_dict()['data_vars'].items()}
+                ) if isinstance(max_relative_error, xr.Dataset) else (
+                    max_relative_error.item()
+                )
+                max_abs_error_obj: float|dict[Hashable, float] = (
+                    {_var: _value['data'] for _var, _value in max_abs_error.to_dict()['data_vars'].items()}
+                ) if isinstance(max_abs_error, xr.Dataset) else (
+                    max_abs_error.item()
+                )
+                rtol_obj: float|dict[Hashable, float] = (
+                    {_var: _value['data'] for _var, _value in rtol_limit.to_dict()['data_vars'].items()}
+                ) if isinstance(rtol_limit, xr.Dataset) else rtol_limit
+                atol_obj: float|dict[Hashable, float] = (
+                    {_var: _value['data'] for _var, _value in atol_limit.to_dict()['data_vars'].items()}
+                ) if isinstance(atol_limit, xr.Dataset) else atol_limit
+                msg: str = (
+                    ''
+                )
+            # NB! LINES BELOW HAVE NOT BEEN UPDATED, CODE NOT FUNCTIONAL!
             if not max_relative_error <= non_negative_error_rtol:
                 msg: str = (
                     f'Negative differences exceed the relative error threshold '
