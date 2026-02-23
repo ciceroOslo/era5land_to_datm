@@ -425,7 +425,7 @@ def decumulate_era5land_var[_XrObj: (xr.DataArray, xr.Dataset)](
                 logger.debug(
                     'Checking relative tolerance...'
                 )
-                max_relative_error: tp.Final[_XrObj] = (
+                relative_error: tp.Final[_XrObj] = (
                     np.abs(decumulated - decumulated_original)
                     / (
                         (
@@ -435,28 +435,13 @@ def decumulate_era5land_var[_XrObj: (xr.DataArray, xr.Dataset)](
                     )
                 ).max().compute()
                 rtol_passed: tp.Final[xr.DataArray|xr.Dataset] = (
-                    max_relative_error <= rtol_limit
-                ).compute()
-                logger.debug(
-                    'Results of relative tolerance check:\n'
-                    f'  - max_relative_error = {str(max_relative_error)}'
-                    f'  - rtol_passed = {str(rtol_passed)}'
+                    relative_error <= rtol_limit
                 )
-                # if isinstance(rtol_limit, xr.Dataset):
-                #     rtol_passed: bool = not (
-                #         max_relative_error
-                #         .pipe(lambda _ds: _ds > rtol_limit)
-                #         .to_dataarray(dim='_______var')
-                #         .any()
-                #         .item()
-                #     )
-                # else:
-                #     rtol_passed: bool = (
-                #         max_relative_error
-                #         .pipe(lambda _arr: _arr > rtol_limit)
-                #         .any()
-                #         .item()
-                #     )
+                # logger.debug(
+                #     'Results of relative tolerance check:\n'
+                #     f'  - max_relative_error = {str(max_relative_error)}'
+                #     f'  - rtol_passed = {str(rtol_passed)}'
+                # )
             else:
                 rtol_passed: tp.Final[xr.DataArray|xr.Dataset] = (
                     xr.DataArray(True)
@@ -466,34 +451,19 @@ def decumulate_era5land_var[_XrObj: (xr.DataArray, xr.Dataset)](
                 )
                 # Assign an empty dummy to `max_relative_error`, to avoid
                 # typechecker warnings about possibly being unbound.
-                max_relative_error: tp.Final[_XrObj] = type(source)()
+                relative_error: tp.Final[_XrObj] = type(source)()
             if atol_limit is not None:
-                max_abs_error: tp.Final[_XrObj] = (
+                abs_error: tp.Final[_XrObj] = (
                     np.abs(decumulated - decumulated_original)
-                ).max().compute()
-                atol_passed: tp.Final[xr.DataArray|xr.Dataset] = (
-                    max_abs_error <= atol_limit
-                ).compute()
-                logger.debug(
-                    'Results of absolute tolerance check:\n'
-                    f'  - max_abs_error = {str(max_abs_error)}'
-                    f'  - atol_passed = {str(atol_passed)}'
                 )
-                # if isinstance(atol_limit, xr.Dataset):
-                #     atol_passed: bool = not (
-                #         max_abs_error
-                #         .pipe(lambda _ds: _ds > atol_limit)
-                #         .to_dataarray(dim='_______var')
-                #         .any()
-                #         .item()
-                #     )
-                # else:
-                #     atol_passed: bool = (
-                #         max_abs_error
-                #         .pipe(lambda _arr: _arr > atol_limit)
-                #         .any()
-                #         .item()
-                #     )
+                atol_passed: tp.Final[xr.DataArray|xr.Dataset] = (
+                    abs_error <= atol_limit
+                )
+                # logger.debug(
+                #     'Results of absolute tolerance check:\n'
+                #     f'  - max_abs_error = {str(max_abs_error)}'
+                #     f'  - atol_passed = {str(atol_passed)}'
+                # )
             else:
                 atol_passed: tp.Final[xr.DataArray|xr.Dataset] = (
                     xr.DataArray(True)
@@ -503,7 +473,7 @@ def decumulate_era5land_var[_XrObj: (xr.DataArray, xr.Dataset)](
                 )
                 # Assign an empty dummy to `max_abs_error`, to avoid
                 # typechecker warnings about possibly being unbound.
-                max_abs_error: tp.Final[_XrObj] = type(source)()
+                abs_error: tp.Final[_XrObj] = type(source)()
             atol_or_rtol_passed: tp.Final[xr.DataArray|xr.Dataset] = (
                 rtol_passed | atol_passed
             )
@@ -513,9 +483,9 @@ def decumulate_era5land_var[_XrObj: (xr.DataArray, xr.Dataset)](
                     atol_or_rtol_passed
                     .to_dataarray(dim=tmp_var_dim)
                     .any()
-                ).item()
+                ).compute().item()
             else:
-                overall_pass: bool = atol_or_rtol_passed.item()
+                overall_pass: bool = atol_or_rtol_passed.compute().item()
             if not overall_pass:
                 def _xr_to_dict_or_value(_obj: xr.DataArray|xr.Dataset) -> (
                         dict[Hashable, float]
@@ -538,33 +508,20 @@ def decumulate_era5land_var[_XrObj: (xr.DataArray, xr.Dataset)](
                                 'eluded several other checks. Plase see the '
                                 'causing exception in the stack trace.'
                             ) from _err
-                relative_error_obj: dict[Hashable, float] | float = (
-                    _xr_to_dict_or_value(max_relative_error)
-                )
-                abs_error_obj: dict[Hashable, float] | float = (
-                    _xr_to_dict_or_value(max_abs_error)
-                )
-                rtol_obj: dict[Hashable, float]|float = (
-                    _xr_to_dict_or_value(rtol_limit)
-                )
-                atol_obj: dict[Hashable, float]|float = (
-                    _xr_to_dict_or_value(atol_limit)
+                failed_count = _xr_to_dict_or_value(
+                    atol_or_rtol_passed
+                    .pipe(lambda _obj: _obj.where(_obj))
+                    .count()
                 )
                 error_msg: str = (
                     'Negative values were forced to zero that exceed the '
                     'specified relative and absolute thresholds.\n'
-                    'Max errors found:\n'
-                    f'  - Relative: {str(relative_error_obj)}\n'
-                    f'  - Absolute: {str(abs_error_obj)}\n'
-                    'Max error tolerance:\n'
-                    f'  - Relative: {str(rtol_obj)}\n'
-                    f'  - Absolute: {str(atol_obj)}\n'
+                    f'Number of values outside of tolerance: {failed_count}'
                 )
                 logger.error(
                     msg=error_msg,
                     extra={
-                        'max_relative_error': max_relative_error,
-                        'max_abs_error': max_abs_error,
+                        'failed_count': failed_count,
                         'rtol': rtol_limit,
                         'atol': atol_limit,
                     }
