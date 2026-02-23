@@ -313,35 +313,37 @@ def decumulate_era5land_var[_XrObj: (xr.DataArray, xr.Dataset)](
         where one of the source values is zero and the other is a very small
         negative number caused by numerical precision issues.
     """
-    if (
-            isinstance(source, xr.DataArray)
-            and any(
+    if isinstance(source, xr.DataArray):
+        if any(
                 isinstance(_param, Mapping) for _param in (
                     force_non_negative,
                     non_negative_error_rtol,
                     non_negative_error_atol,
                 )
+        ):
+            error_msg: str = (
+                'Function `decumulate_era5land_var` received an xarray.DataArray '
+                'as source, but at least one of the parameters '
+                '`force_non_negative`, `non_negative_error_rtol` and '
+                '`non_negative_error_atol` is a mapping. These must all be scalar '
+                'numbers when `source` is a DataArray and not a Dataset.'
             )
-    ):
-        error_msg: str = (
-            'Function `decumulate_era5land_var` received an xarray.DataArray '
-            'as source, but at least one of the parameters '
-            '`force_non_negative`, `non_negative_error_rtol` and '
-            '`non_negative_error_atol` is a mapping. These must all be scalar '
-            'numbers when `source` is a DataArray and not a Dataset.'
-        )
-        logger.error(
-            msg=error_msg,
-            extra={
-                'params': {
-                    'source_type': type(source),
-                    'force_non_negative': force_non_negative,
-                    'non_negative_error_rtol': non_negative_error_rtol,
-                    'non_negative_error_atol': non_negative_error_atol,
+            logger.error(
+                msg=error_msg,
+                extra={
+                    'params': {
+                        'source_type': type(source),
+                        'force_non_negative': force_non_negative,
+                        'non_negative_error_rtol': non_negative_error_rtol,
+                        'non_negative_error_atol': non_negative_error_atol,
+                    }
                 }
-            }
-        )
-        raise TypeError(error_msg)
+            )
+            raise TypeError(error_msg)
+        else:
+            assert not isinstance(force_non_negative, Mapping)
+            assert not isinstance(non_negative_error_rtol, Mapping)
+            assert not isinstance(non_negative_error_atol, Mapping)
     if step_dim not in source.dims:
         raise ValueError(
             f'The source DataArray must have a step dimension {step_dim}.'
@@ -375,14 +377,14 @@ def decumulate_era5land_var[_XrObj: (xr.DataArray, xr.Dataset)](
                 isinstance(decumulated, xr.Dataset)
                 and isinstance(force_non_negative, Mapping)
         ):
-            decumulated = decumulated.assign(
+            decumulated = tp.cast(_XrObj, decumulated.assign(
                 {
                     _var: decumulated[_var].clip(min=0)
                     for _var in force_non_negative
                 }
-            )
+            ))
         else:
-            decumulated = decumulated.clip(min=0)
+            decumulated = tp.cast(_XrObj, decumulated.clip(min=0))
         if (
                 (non_negative_error_rtol is not None)
                 or (non_negative_error_atol is not None)
@@ -390,19 +392,25 @@ def decumulate_era5land_var[_XrObj: (xr.DataArray, xr.Dataset)](
             # Take the difference divided by the average of the first and second
             # term in the difference, since one of them might be zero.
             if isinstance(non_negative_error_rtol, Mapping):
-                rtol_limit: xr.Dataset|float|None = xr.Dataset(
+                rtol_limit: xr.DataArray|xr.Dataset = xr.Dataset(
                     non_negative_error_rtol
                 )
+                assert isinstance(decumulated, xr.Dataset)
             else:
-                rtol_limit: xr.Dataset|float|None = non_negative_error_rtol
+                rtol_limit: xr.DataArray|xr.Dataset = xr.DataArray(
+                    non_negative_error_rtol
+                )
             if isinstance(non_negative_error_atol, Mapping):
-                atol_limit: xr.Dataset|float|None = xr.Dataset(
+                atol_limit: xr.DataArray|xr.Dataset = xr.Dataset(
                     non_negative_error_atol
                 )
+                assert isinstance(decumulated, xr.Dataset)
             else:
-                atol_limit: xr.Dataset|float|None = non_negative_error_atol
+                atol_limit: xr.DataArray|xr.Dataset = xr.DataArray(
+                    non_negative_error_atol
+                )
             if rtol_limit is not None:
-                relative_errors = (
+                max_relative_error: tp.Final[_XrObj] = (
                     np.abs(decumulated - decumulated_original)
                     / (
                         (
@@ -410,45 +418,55 @@ def decumulate_era5land_var[_XrObj: (xr.DataArray, xr.Dataset)](
                             + source.isel({step_dim: slice(1, None)})
                         ) / 2.0
                     )
+                ).max()
+                rtol_passed: tp.Final[xr.DataArray|xr.Dataset] = (
+                    max_relative_error <= rtol_limit
                 )
-                max_relative_error: _XrObj = relative_errors.max()
-                if isinstance(rtol_limit, xr.Dataset):
-                    rtol_passed: bool = not (
-                        max_relative_error
-                        .pipe(lambda _ds: _ds > rtol_limit)
-                        .to_dataarray(dim='_______var')
-                        .any()
-                        .item()
-                    )
-                else:
-                    rtol_passed: bool = (
-                        max_relative_error
-                        .pipe(lambda _arr: _arr > rtol_limit)
-                        .any()
-                        .item()
-                    )
+                # if isinstance(rtol_limit, xr.Dataset):
+                #     rtol_passed: bool = not (
+                #         max_relative_error
+                #         .pipe(lambda _ds: _ds > rtol_limit)
+                #         .to_dataarray(dim='_______var')
+                #         .any()
+                #         .item()
+                #     )
+                # else:
+                #     rtol_passed: bool = (
+                #         max_relative_error
+                #         .pipe(lambda _arr: _arr > rtol_limit)
+                #         .any()
+                #         .item()
+                #     )
             else:
-                rtol_passed: bool = True
+                rtol_passed: tp.Final[xr.DataArray|xr.Dataset] = (
+                    xr.DataArray(True)
+                )
             if atol_limit is not None:
-                abs_errors = np.abs(decumulated - decumulated_original)
-                max_abs_error: _XrObj = abs_errors.max()
-                if isinstance(atol_limit, xr.Dataset):
-                    atol_passed: bool = not (
-                        max_abs_error
-                        .pipe(lambda _ds: _ds > atol_limit)
-                        .to_dataarray(dim='_______var')
-                        .any()
-                        .item()
-                    )
-                else:
-                    atol_passed: bool = (
-                        max_abs_error
-                        .pipe(lambda _arr: _arr > atol_limit)
-                        .any()
-                        .item()
-                    )
+                max_abs_error: tp.Final[_XrObj] = (
+                    np.abs(decumulated - decumulated_original)
+                )
+                atol_passed: tp.Final[xr.DataArray|xr.Dataset] = (
+                    max_abs_error <= atol_limit
+                )
+                # if isinstance(atol_limit, xr.Dataset):
+                #     atol_passed: bool = not (
+                #         max_abs_error
+                #         .pipe(lambda _ds: _ds > atol_limit)
+                #         .to_dataarray(dim='_______var')
+                #         .any()
+                #         .item()
+                #     )
+                # else:
+                #     atol_passed: bool = (
+                #         max_abs_error
+                #         .pipe(lambda _arr: _arr > atol_limit)
+                #         .any()
+                #         .item()
+                #     )
             else:
-                atol_passed: bool = True
+                atol_passed: tp.Final[xr.DataArray|xr.Dataset] = (
+                    xr.DataArray(True)
+                )
             if not (rtol_passed or atol_passed):
                 max_relative_error_obj: float|dict[Hashable, float] = (
                     {_var: _value['data'] for _var, _value in max_relative_error.to_dict()['data_vars'].items()}
