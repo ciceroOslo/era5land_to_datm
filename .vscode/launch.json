@@ -29,8 +29,8 @@
                 "--source-files", "era5land_d2m_sp_ssrd_strd_t2m_tp_u10_v10_{year:04d}_{month:02d}.grib",
                 "--output-dir", "${input:era5outputfolder}",
                 "--output-files", "clmforc.ERA5Land_NorwayRect0.1x0.1.{stream}.{year:04d}-{month:02d}.nc",
-                "--start-year-month", "2019", "03",
-                "--end-year-month", "2019", "05",
+                "--start-year-month", "${input:START_YEAR}", "${input:START_MONTH}",
+                "--end-year-month", "${input:END_YEAR}", "${input:END_MONTH}",
                 "--mask-file", "${input:era5datafolder}/era5_land_mask_rounded_coords.nc",
                 "--if-masked-values", "raise",
                 "--if-unmasked-nulls", "warn",
@@ -49,6 +49,26 @@
             "id": "era5outputfolder",
             "type": "promptString",
             "description": "Absolute path to folder for converted output files"
+        },
+        {
+            "id": "START_YEAR",
+            "type": "promptString",
+            "description": "Start year"
+        },
+        {
+            "id": "START_MONTH",
+            "type": "promptString",
+            "description": "Start month"
+        },
+        {
+            "id": "END_YEAR",
+            "type": "promptString",
+            "description": "End year"
+        },
+        {
+            "id": "END_MONTH",
+            "type": "promptString",
+            "description": "End month"
         }
     ]
 }
