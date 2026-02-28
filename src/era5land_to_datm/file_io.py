@@ -32,6 +32,7 @@ from .types import (
     DATM7_DATAVAR_DTYPE,
     DATM7_NC_FILE_FORMAT,
     DATM7_TIME_DTYPE,
+    DaskChunkSpec,
     make_datm7_time_units,
 )
 
@@ -45,7 +46,8 @@ def open_era5land_grib(
         *,
         next_file: Path|None = None,
         previous_file: Path|None = None,
-        chunks: dict|int|tp.Literal['auto']|None = 'auto',
+        chunks: DaskChunkSpec|None|tp.Literal['norway_rect_0.1x0.1'] \
+            = 'norway_rect_0.1x0.1',
         date_dim: str = Era5LandDim.DATE,
         step_dim: str = Era5LandDim.STEP,
 ) -> xr.Dataset:
@@ -66,10 +68,13 @@ def open_era5land_grib(
         given, it will be lazily opened, and the last date will be extracted and
         concatenated to the main dataset along the time dimension. Optional, by
         default None.
-    chunks : dict | int | 'auto' | None, optional
+    chunks : dict | int | 'auto' | 'norway_rect_0.1x0.1' | None, optional
         Chunking option for xarray when opening the dataset. Passed directly to
-        `xarray.open_dataset()`. By default 'auto'. To disable chunking, set to
+        `xarray.open_dataset()`. To disable chunking, set to
         False. In order to use xarray's lazy loading without dask, set to None.
+        By default equal to `norway_rect_0.1x0.1', which attempts to optimize
+        chunking for a 0.1x0.1 degree rectangular grid that covers Norway and
+        rivers flowing out of Norway, from 4E to 32E and from 57N to 72N.
     date_dim : str, optional
         Name of the time/date dimension in the ERA5 Land dataset. By default
         given by the string enum `Era5LandDim.DATE`.
@@ -90,6 +95,14 @@ def open_era5land_grib(
         match the *last* intra-date time step in the next file, or if the next
         file contains variables that are not present in the source file.
     """
+    if isinstance(chunks, str) and chunks == 'norway_rect_0.1x0.1':
+        # chunks = {
+        #     Era5LandDim.DATE: 1,
+        #     Era5LandDim.STEP: 1,
+        #     Era5LandDim.LAT: 7,
+        #     Era5LandDim.LON: 14,
+        # }
+        chunks = 'auto'
     era5_ds: xr.Dataset = xr.open_dataset(
         file,
         chunks=chunks,
@@ -227,6 +240,17 @@ def write_datm_nc(
         )
     if encoding_dict is None:
         encoding_dict = make_datm7_encoding_dict(ds)
+    if encoding_dict.get(Datm7Dim.TIME, {}).get('calendar') == 'noleap':
+        # Calendar may have been set to noleap even if the source data contain
+        # February 29, so drop that date to avoid errors when writing to netCDF.
+        time_arr: xr.DataArray = ds[Datm7Dim.TIME]
+        ds = ds.sel(
+            {
+                Datm7Dim.TIME: (
+                    ~((time_arr.dt.month == 2) & (time_arr.dt.day == 29))
+                )
+            }
+        )
     ds.to_netcdf(
         path=output_file,
         mode='w',

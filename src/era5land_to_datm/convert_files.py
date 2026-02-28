@@ -59,6 +59,8 @@ import typing as tp
 from typing import NamedTuple
 import warnings
 
+import dask
+import dask.distributed
 from korsbakken_python_utils.containers.dataobject import UniformTypeDataObject
 import numpy as np
 import xarray as xr
@@ -1289,10 +1291,10 @@ def process_mask_and_nulls(
                 raise RuntimeError(error_msg)
         else:
             logger.info('No null values found in unmasked areas.')
-            return_unmasked_null_ds = None
+            return_unmasked_null_ds = xr.Dataset({'dumy_var': False})
     else:
         logger.debug('Skipping explicit check for null values in unmasked areas.')
-        return_unmasked_null_ds = None
+        return_unmasked_null_ds = xr.Dataset({'dumy_var': False})
 
     # Fill unmasked null values if requested.
     if unmasked_nulls_processing != UnmaskedNullsProcessing.NONE:
@@ -1481,6 +1483,7 @@ def process_unmasked_nulls(
                 'source_files': source_files,
             },
         )
+        return source.where(mask)
 
     # Confirm that the mask and source datasets have compatible dimensions
     if (

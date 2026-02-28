@@ -11,6 +11,10 @@ the time of writing (January 2026).
 """
 import logging
 from pathlib import Path
+import time
+
+import dask
+import dask.distributed
 
 from era5land_to_datm.convert_files import convert_monthly_era5_files
 from era5land_to_datm.logger_registry import (
@@ -292,19 +296,29 @@ def main() -> None:
         f'\n  start_year_month: {args.start_year_month}'
         f'\n  end_year_month: {args.end_year_month}'
     )
-    convert_monthly_era5_files(
-        source_files=source_files_pattern,
-        output_files=output_files_pattern,
-        start_year_month=tuple(args.start_year_month),
-        end_year_month=tuple(args.end_year_month),
-        round_lat_to=args.round_lat_to,
-        round_lon_to=args.round_lon_to,
-        mask_file=args.mask_file,
-        if_masked_values=MaskedValuesHandling(args.if_masked_values),
-        if_unmasked_nulls=UnmaskedNullsHandling(args.if_unmasked_nulls),
-        unmasked_nulls_processing=UnmaskedNullsProcessing(args.unmasked_nulls_processing),
-        null_value_files=args.null_value_files,
+    logger.info(
+        'Creating a local cluster and client...'
     )
+    cluster = dask.distributed.LocalCluster()
+    with cluster.get_client() as client:
+        convert_monthly_era5_files(
+            source_files=source_files_pattern,
+            output_files=output_files_pattern,
+            start_year_month=tuple(args.start_year_month),
+            end_year_month=tuple(args.end_year_month),
+            round_lat_to=args.round_lat_to,
+            round_lon_to=args.round_lon_to,
+            mask_file=args.mask_file,
+            if_masked_values=MaskedValuesHandling(args.if_masked_values),
+            if_unmasked_nulls=UnmaskedNullsHandling(args.if_unmasked_nulls),
+            unmasked_nulls_processing=UnmaskedNullsProcessing(
+                args.unmasked_nulls_processing
+            ),
+            null_value_files=args.null_value_files,
+        )
+        logger.info(
+            'Fnished processing, closing client and shutting down cluster...'
+        )
 
 ###END def main
 

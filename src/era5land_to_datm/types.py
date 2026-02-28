@@ -7,6 +7,9 @@ YearMonth
     2020).
 VarSet
     A frozenset of Era5LandVar instances representing a set of variables.
+DaskChunkSpec
+    A union type for possible types that can be used to specify dask chunk sizes
+    or numbers.
 
 Enums
 -----
@@ -15,7 +18,11 @@ EcmwfDatasetId
 Era5LandVar
     Enumeration of ERA5-Land variables available for download.
 """
-from collections.abc import Callable
+from collections.abc import (
+    Callable,
+    Hashable,
+    Mapping,
+)
 import datetime
 import enum
 import typing as tp
@@ -165,3 +172,11 @@ def make_datm7_time_units(start_time: np.datetime64) -> str:
         .strftime('%Y-%m-%d')
     )
     return f'days since {start_time_string}'
+###END def make_datm7_time_units
+
+
+type DaskChunkSpec = (
+    Mapping[Hashable, int | tuple[int, ...]]
+    | tp.Literal['auto']
+    | tp.Literal[False]
+)
