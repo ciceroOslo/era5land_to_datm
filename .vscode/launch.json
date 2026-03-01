@@ -34,7 +34,7 @@
                 "--mask-file", "${input:era5datafolder}/era5_land_mask_rounded_coords.nc",
                 "--if-masked-values", "raise",
                 "--if-unmasked-nulls", "warn",
-                "--null-value-files", "${input:era5outputfolder}/era5land_missing_data_locs_{year:04d}-{month:02d}.nc",
+                "--null-value-files", "${input:era5datafolder}/era5land_missing_data_locs_{year:04d}-{month:02d}.nc",
                 "--log-level", "DEBUG"
             ]
         }
