@@ -43,12 +43,14 @@
         {
             "id": "era5datafolder",
             "type": "promptString",
-            "description": "Absolute path to ERA5 Land data file folder"
+            "description": "Absolute path to ERA5 Land data file folder",
+            "default": "/cluster/shared/noresm/inputdata/cicero_mods/ERA5-Land_NorSink/original_GRIB_NorwayRect"
         },
         {
             "id": "era5outputfolder",
             "type": "promptString",
-            "description": "Absolute path to folder for converted output files"
+            "description": "Absolute path to folder for converted output files",
+            "default": "/cluster/shared/noresm/inputdata/cicero_mods/atm/datm7/atm_forcing.datm7.ERA5LAND_NORWAYRECT.0.1d.c20260223"
         },
         {
             "id": "START_YEAR",
