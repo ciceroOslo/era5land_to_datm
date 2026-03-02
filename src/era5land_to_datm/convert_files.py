@@ -1682,6 +1682,7 @@ def process_unmasked_nulls(
         source_filled_unstacked = (
             source_filled
             .set_index({location_dim: [Era5LandDim.LAT, Era5LandDim.LON]})
+            .drop_duplicates(dim='location')  # Need to drop duplicate lat/lon values in case the same point has nulls at more than one time
             .unstack(location_dim)
         )
         logger.debug('Loading source_filled_unstacked before combining...')
