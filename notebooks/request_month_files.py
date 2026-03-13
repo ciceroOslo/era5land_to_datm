@@ -38,9 +38,9 @@ logger: logging.Logger = logging_common.initialize_logger()
 # %%
 years_months: list[YearMonth] = [
     YearMonth(year=_year, month=_month)
-    for _year in range(1950, 1951+1)
+    for _year in range(2025, 2025+1)
     for _month in range(1, 12+1)
-]
+] + [YearMonth(year=2026, month=1)]
 
 print(f'Requesting data for {len(years_months)} year-months:')
 print(',\n'.join(f'{ym.year:04d}-{ym.month:02d}' for ym in years_months))
