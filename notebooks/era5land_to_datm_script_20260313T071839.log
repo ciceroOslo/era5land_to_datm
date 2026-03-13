@@ -1,7 +1,0 @@
-2026-03-13T08:18:39+0100 - root - INFO - Logger initialized.
-2026-03-13T08:18:39+0100 - root - INFO - Logging to file: /cluster/projects/nn9188k/janko/src/repos/era5land_to_datm/notebooks/era5land_to_datm_script_20260313T071839.log
-2026-03-13T08:18:43+0100 - era5land_to_datm.requests - INFO - Submitting request for year=2026, month=02...
-2026-03-13T08:18:44+0100 - ecmwf.datastores.processing - INFO - [2025-12-11T00:00:00] Please note that a dedicated catalogue entry for this dataset, post-processed and stored in Analysis Ready Cloud Optimized (ARCO) format (Zarr), is available for optimised time-series retrievals (i.e. for retrieving data from selected variables for a single point over an extended period of time in an efficient way). You can discover it [here](https://cds.climate.copernicus.eu/datasets/reanalysis-era5-land-timeseries?tab=overview)
-2026-03-13T08:18:44+0100 - ecmwf.datastores.processing - INFO - Request ID is e328c9d8-5c8f-4716-892b-541e1982449a
-2026-03-13T08:18:44+0100 - ecmwf.datastores.processing - INFO - status has been updated to accepted
-2026-03-13T08:18:44+0100 - era5land_to_datm.requests - INFO - Request submitted with ID e328c9d8-5c8f-4716-892b-541e1982449a, status accepted.
